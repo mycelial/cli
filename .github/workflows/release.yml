@@ -1,0 +1,83 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - '*'
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ${{ matrix.os }}
+
+    env:
+      RUSTFLAGS: "-C target-feature=-crt-static"
+      CARGO_TARGET_ARM_UNKNOWN_LINUX_GNUEABIHF_LINKER: arm-linux-gnueabihf-gcc
+      CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_LINKER: aarch64-linux-gnu-gcc
+
+    strategy:
+      matrix:
+        include:
+          - build: linux
+            os: ubuntu-22.04
+            target: x86_64-unknown-linux-gnu
+
+          - build: linux
+            os: ubuntu-20.04
+            target: aarch64-unknown-linux-gnu
+
+          - build: linux
+            os: ubuntu-20.04
+            target: arm-unknown-linux-gnueabihf
+
+          - build: macos
+            os: macos-12
+            target: x86_64-apple-darwin
+
+          - build: macos
+            os: macos-12
+            target: aarch64-apple-darwin
+
+    steps:
+      - name: checkout
+        uses: actions/checkout@v3          
+
+      - name: install packages (linux)
+        if: matrix.build == 'linux'
+        run: |
+          sudo apt update
+          sudo apt install pkg-config gcc-arm-linux-gnueabihf gcc-aarch64-linux-gnu musl-tools libssl-dev wget -qy
+
+      - name: setup rust
+        uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: stable
+          target: ${{ matrix.target }}
+
+      - name: build binary
+        run: |
+          cargo build --verbose --release --target ${{ matrix.target }}
+          ls target/${{ matrix.target }}/release/
+
+      - name: build archive
+        if: matrix.build == 'linux'
+        run: |
+          export MYCELIAL_NAME=mycelial-${{ matrix.target }}.tgz
+          tar -czf $MYCELIAL_NAME -C "./target/${{ matrix.target }}/release/" mycelial
+          echo "MYCELIAL_NAME=$MYCELIAL_NAME" >> $GITHUB_ENV
+
+      - name: build archive
+        if: matrix.build == 'macos'
+        run: |
+          export MYCELIAL_NAME=mycelial-${{ matrix.target }}.tgz
+          tar -czf $MYCELIAL_NAME -C "./target/${{ matrix.target }}/release/" mycelial
+          echo "MYCELIAL_NAME=$MYCELIAL_NAME" >> $GITHUB_ENV
+
+      - name: release
+        uses: ncipollo/release-action@v1
+        with:
+          artifacts: "${{ env.MYCELIAL_NAME }}"
+          artifactErrorsFailBuild: true
+          allowUpdates: true
