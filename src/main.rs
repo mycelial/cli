@@ -1,5 +1,5 @@
 use clap::{Parser, Subcommand};
-use cli::{destroy, init, start};
+use mycelial::{destroy, init, start};
 
 #[derive(Debug, Parser)]
 #[command(name = "mycelial")]
