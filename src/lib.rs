@@ -2,11 +2,8 @@ use colored::*;
 use flate2::read::GzDecoder;
 use os_info::Type;
 use std::env::current_dir;
-use std::fs;
-use std::fs::read_to_string;
-use std::fs::{remove_file, File};
-use std::io::Cursor;
-use std::io::Write;
+use std::fs::{self, read_to_string, remove_file, File};
+use std::io::{Cursor, Write};
 use std::process::Stdio;
 use tar::Archive;
 use toml::{map::Map, Value};
@@ -17,7 +14,7 @@ use inquire::{required, Password, Select, Text};
 type Result<T> = std::result::Result<T, Box<dyn std::error::Error + Send + Sync>>;
 
 pub async fn init() -> Result<()> {
-    println!("{}", "Initializing Mycelial...".green());
+    println!("{}", "Initializing Mycelial".green());
     println!("{}", "Downloading binaries...".green());
     download_binaries().await?;
     println!(
@@ -50,7 +47,7 @@ pub async fn destroy() -> Result<()> {
                 println!("killed pid {}", pid);
             }
             Err(_err) => {
-                // ignore errors attempting to delete pids
+                eprintln!("error killing pid {}", pid);
             }
         }
     }
@@ -218,7 +215,7 @@ pub async fn download_and_unarchive(url: &str, file_name: &str) -> Result<()> {
     let mut content = Cursor::new(response.bytes().await?);
     std::io::copy(&mut content, &mut file)?;
     println!("done!");
-    print!("Unpacking {}...", file_name);
+    print!("Unarchiving {}...", file_name);
     std::io::stdout().flush()?;
     let tar_gz = File::open(file_name)?;
     let tar = GzDecoder::new(tar_gz);
@@ -299,9 +296,9 @@ async fn create_config() -> Result<()> {
                         .with_help_message("Display Name")
                         .prompt()?;
                     let path = Text::new("Journal Path:")
-                        .with_default("data-mycelial")
+                        .with_default("data.db-mycelial")
                         .with_validator(required!("This field is required"))
-                        .with_help_message("Path")
+                        .with_help_message("Journal path")
                         .prompt()?;
                     let mut source_table = Map::new();
                     source_table.insert(
@@ -333,12 +330,12 @@ async fn create_config() -> Result<()> {
                     let journal_path = Text::new("Journal Path:")
                         .with_default("destination-sqlite-mycelial")
                         .with_validator(required!("This field is required"))
-                        .with_help_message("Path")
+                        .with_help_message("Journal path")
                         .prompt()?;
                     let database_path = Text::new("Database Path:")
                         .with_default("destination-sqlite.data")
                         .with_validator(required!("This field is required"))
-                        .with_help_message("Path")
+                        .with_help_message("Database path and filename")
                         .prompt()?;
                     let mut destination_table = Map::new();
                     destination_table.insert(
