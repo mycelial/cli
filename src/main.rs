@@ -7,14 +7,18 @@ use mycelial::{destroy, init, start};
 struct Cli {
     #[command(subcommand)]
     command: Commands,
+    /// downloads the mycelial server and client
     #[arg(short, long, action = clap::ArgAction::Count)]
     local: u8,
 }
 
 #[derive(Debug, Subcommand)]
 enum Commands {
+    /// setup mycelial
     Init,
+    /// starts the server and myceliald (client)
     Start,
+    /// stops the server and myceliald (client)
     Destroy,
 }
 
