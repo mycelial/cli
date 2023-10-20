@@ -4,6 +4,7 @@ use os_info::Type;
 use std::env::current_dir;
 use std::fs::{self, read_to_string, remove_file, File};
 use std::io::{Cursor, Write};
+use std::path::Path;
 use std::process::Stdio;
 use tar::Archive;
 use toml::{map::Map, Value};
@@ -26,6 +27,13 @@ pub async fn init() -> Result<()> {
 }
 
 pub async fn start() -> Result<()> {
+    if can_start() {
+        println!(
+            "{}",
+            "You must run `mycelial --local init` before `mycelial start`".red()
+        );
+        return Ok(());
+    }
     destroy().await?;
     do_start().await?;
     println!("{}", "Mycelial started!".green());
@@ -360,4 +368,11 @@ async fn create_config() -> Result<()> {
         }
     }
     Ok(())
+}
+
+fn can_start() -> bool {
+    let server_path = Path::new("server");
+    let myceliald_path = Path::new("myceliald");
+    let config_path = Path::new("config.toml");
+    !server_path.exists() || !myceliald_path.exists() || !config_path.exists()
 }
