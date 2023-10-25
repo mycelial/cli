@@ -5,6 +5,11 @@ on:
     tags:
       - '*'
 
+env:
+  APP_NAME: 'mycelial'
+  MAINTAINER: 'knowthen'
+  DESC: 'mycelial cli bootstraps the Mycelial binaries'
+
 permissions:
   contents: write
 
@@ -50,7 +55,8 @@ jobs:
         if: matrix.build == 'linux'
         run: |
           sudo apt update
-          sudo apt install pkg-config gcc-arm-linux-gnueabihf gcc-aarch64-linux-gnu musl-tools libssl-dev wget -qy
+          sudo apt install pkg-config gcc-arm-linux-gnueabihf gcc-aarch64-linux-gnu musl-tools libssl-dev wget ruby-dev build-essential -qy
+          sudo gem i fpm -f
 
       - name: install packages (macos)
         if: matrix.build == 'macos'
@@ -108,9 +114,100 @@ jobs:
           tar -czf $MYCELIAL_NAME -C "./target/${{ matrix.target }}/release/" mycelial
           echo "MYCELIAL_NAME=$MYCELIAL_NAME" >> $GITHUB_ENV
 
+      - name: create deb package folder
+        if: matrix.build == 'linux'
+        run: |
+          mkdir -p .debpkg/usr/bin
+          cp ./target/${{ matrix.target }}/release/mycelial .debpkg/usr/bin/ 
+          ls .debpkg/usr/bin/
+
+      - name: build debian package arm32
+        if: matrix.target == 'arm-unknown-linux-gnueabihf'
+        uses: jiro4989/build-deb-action@v3
+        with:
+          package: ${{ env.APP_NAME }}
+          package_root: .debpkg
+          maintainer: ${{ env.MAINTAINER }}
+          version: ${{ github.ref }}
+          arch: 'armhf'
+          desc: '${{ env.DESC }}'
+
+      - name: build debian package arm64
+        if: matrix.target == 'aarch64-unknown-linux-gnu'
+        uses: jiro4989/build-deb-action@v3
+        with:
+          package: ${{ env.APP_NAME }}
+          package_root: .debpkg
+          maintainer: ${{ env.MAINTAINER }}
+          version: ${{ github.ref }}
+          arch: 'arm64'
+          desc: '${{ env.DESC }}'
+
+      - name: build debian package x86_64
+        if: matrix.target == 'x86_64-unknown-linux-gnu'
+        uses: jiro4989/build-deb-action@v3
+        with:
+          package: ${{ env.APP_NAME }}
+          package_root: .debpkg
+          maintainer: ${{ env.MAINTAINER }}
+          version: ${{ github.ref }}
+          arch: 'amd64'
+          desc: '${{ env.DESC }}'
+
+      - name: build rpm x86_64
+        if: matrix.target == 'x86_64-unknown-linux-gnu'
+        run: |
+          cp ./target/${{ matrix.target }}/release/mycelial ./
+          ls
+          fpm \
+            -s dir -t rpm \
+            -p mycelial-${GITHUB_REF#refs/*/}-1.x86_64.rpm \
+            --name mycelial \
+            --license apache2 \
+            --version ${GITHUB_REF#refs/*/} \
+            --architecture x86_64 \
+            --description "Mycelial CLI" \
+            --url "https://mycelial.com" \
+            --maintainer "James Moore <james@mycelial.com>" \
+            mycelial=/usr/bin/mycelial
+
+      - name: build rpm arm64
+        if: matrix.target == 'aarch64-unknown-linux-gnu'
+        run: |
+          cp ./target/${{ matrix.target }}/release/mycelial ./
+          ls
+          fpm \
+            -s dir -t rpm \
+            -p mycelial-${GITHUB_REF#refs/*/}-1.arm64.rpm \
+            --name mycelial \
+            --license apache2 \
+            --version ${GITHUB_REF#refs/*/} \
+            --architecture arm64 \
+            --description "Mycelial CLI" \
+            --url "https://mycelial.com" \
+            --maintainer "James Moore <james@mycelial.com>" \
+            mycelial=/usr/bin/mycelial
+
+      - name: build rpm arm
+        if: matrix.target == 'arm-unknown-linux-gnueabihf'
+        run: |
+          cp ./target/${{ matrix.target }}/release/mycelial ./
+          ls
+          fpm \
+            -s dir -t rpm \
+            -p mycelial-${GITHUB_REF#refs/*/}-1.armhf.rpm \
+            --name mycelial \
+            --license apache2 \
+            --version ${GITHUB_REF#refs/*/} \
+            --architecture armhf \
+            --description "Mycelial CLI" \
+            --url "https://mycelial.com" \
+            --maintainer "James Moore <james@mycelial.com>" \
+            mycelial=/usr/bin/mycelial
+
       - name: release
         uses: ncipollo/release-action@v1
         with:
-          artifacts: "${{ env.MYCELIAL_NAME }}"
+          artifacts: "${{ env.MYCELIAL_NAME }}, ./*.deb, ./*.rpm"
           artifactErrorsFailBuild: true
           allowUpdates: true
