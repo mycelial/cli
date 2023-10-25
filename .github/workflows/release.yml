@@ -206,6 +206,15 @@ jobs:
             mycelial=/usr/bin/mycelial
 
       - name: release
+        if: matrix.build == 'macos'
+        uses: ncipollo/release-action@v1
+        with:
+          artifacts: "${{ env.MYCELIAL_NAME }}"
+          artifactErrorsFailBuild: true
+          allowUpdates: true
+
+      - name: release
+        if: matrix.build == 'linux'
         uses: ncipollo/release-action@v1
         with:
           artifacts: "${{ env.MYCELIAL_NAME }}, ./*.deb, ./*.rpm"
