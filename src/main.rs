@@ -3,19 +3,19 @@ use mycelial::{destroy, init, start};
 
 #[derive(Debug, Parser)]
 #[command(name = "mycelial")]
-#[command(about = "A command line interface (Cli) for Mycelial", long_about = None)]
+#[command(about = "A command line interface (Cli) for Mycelial", version, long_about = None)]
 struct Cli {
     #[command(subcommand)]
     command: Commands,
-    /// downloads the mycelial server and client
-    #[arg(short, long, action = clap::ArgAction::Count)]
-    local: u8,
 }
 
 #[derive(Debug, Subcommand)]
 enum Commands {
     /// setup mycelial
-    Init,
+    Init {
+        #[arg(short, long)]
+        local: bool,
+    },
     /// starts the server and myceliald (client)
     Start,
     /// stops the server and myceliald (client)
@@ -36,12 +36,14 @@ async fn main() {
 
 async fn run(args: Cli) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     match args.command {
-        Commands::Init => {
-            let is_local = args.local > 0;
-            if is_local {
+        Commands::Init { local } => {
+            if local {
                 init().await?;
             } else {
-                return Err("init command must be run with --local option".into());
+                return Err(
+                    "init command must be run with --local option ex: `mycelial init --local`"
+                        .into(),
+                );
             }
         }
         Commands::Start => {
