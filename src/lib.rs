@@ -1,6 +1,5 @@
 use colored::*;
 use flate2::read::GzDecoder;
-use os_info::Type;
 use std::env::current_dir;
 use std::fs::{self, read_to_string, remove_file, File};
 use std::io::{Cursor, Write};
@@ -99,68 +98,40 @@ fn get_pids() -> Vec<String> {
     pids
 }
 
-enum OS {
-    LinuxX8664,
-    LinuxARM64,
-    LinuxARM32,
-    MacOSX8664,
-    MacOSARM64,
-    Unknown,
-}
-
-fn get_os() -> OS {
-    let info = os_info::get();
-    match info.os_type() {
-        Type::Macos => {
-            if Some("arm64") == info.architecture() {
-                OS::MacOSARM64
-            } else {
-                OS::MacOSX8664
-            }
-        }
-        Type::Windows => OS::Unknown,
-        Type::NetBSD
-        | Type::FreeBSD
-        | Type::OpenBSD
-        | Type::DragonFly
-        | Type::HardenedBSD
-        | Type::MidnightBSD => OS::Unknown,
-        _ => {
-            if Some("arm64") == info.architecture() {
-                OS::LinuxARM64
-            } else if Some("arm32") == info.architecture() {
-                OS::LinuxARM32
-            } else {
-                OS::LinuxX8664
-            }
-        }
-    }
-}
-
 async fn download_binaries() -> Result<()> {
-    match get_os() {
-        OS::LinuxX8664 => {
-            download_and_unarchive("https://github.com/mycelial/mycelial/releases/latest/download/server-x86_64-unknown-linux-gnu.tgz" , "server-x86_64-unknown-linux-gnu.tgz").await?;
-            download_and_unarchive("https://github.com/mycelial/mycelial/releases/latest/download/myceliald-x86_64-unknown-linux-gnu.tgz", "myceliald-x86_64-unknown-linux-gnu.tgz").await?;
-        }
-        OS::LinuxARM64 => {
-            download_and_unarchive("https://github.com/mycelial/mycelial/releases/latest/download/server-aarch64-unknown-linux-gnu.tgz" , "server-aarch64-unknown-linux-gnu.tgz").await?;
-            download_and_unarchive("https://github.com/mycelial/mycelial/releases/latest/download/myceliald-aarch64-unknown-linux-gnu.tgz", "myceliald-aarch64-unknown-linux-gnu.tgz").await?;
-        }
-        OS::LinuxARM32 => {
-            download_and_unarchive("https://github.com/mycelial/mycelial/releases/latest/download/server-arm-unknown-linux-gnueabihf.tgz" , "server-arm-unknown-linux-gnueabihf.tgz").await?;
-            download_and_unarchive("https://github.com/mycelial/mycelial/releases/latest/download/myceliald-arm-unknown-linux-gnueabihf.tgz", "myceliald-arm-unknown-linux-gnueabihf.tgz").await?;
-        }
-        OS::MacOSX8664 => {
-            download_and_unarchive("https://github.com/mycelial/mycelial/releases/latest/download/server-x86_64-apple-darwin.tgz", "server-x86_64-apple-darwin.tgz").await?;
-            download_and_unarchive("https://github.com/mycelial/mycelial/releases/latest/download/myceliald-x86_64-apple-darwin.tgz", "myceliald-x86_64-apple-darwin.tgz").await?;
-        }
-        OS::MacOSARM64 => {
-            download_and_unarchive("https://github.com/mycelial/mycelial/releases/latest/download/server-aarch64-apple-darwin.tgz", "server-aarch64-apple-darwin.tgz").await?;
-            download_and_unarchive("https://github.com/mycelial/mycelial/releases/latest/download/myceliald-aarch64-apple-darwin.tgz", "myceliald-aarch64-apple-darwin.tgz").await?;
-        }
-        OS::Unknown => {
-            panic!("Unknown OS");
+    match std::env::consts::OS {
+        "linux" => match std::env::consts::ARCH {
+            "x86_64" => {
+                download_and_unarchive("https://github.com/mycelial/mycelial/releases/latest/download/server-x86_64-unknown-linux-gnu.tgz" , "server-x86_64-unknown-linux-gnu.tgz").await?;
+                download_and_unarchive("https://github.com/mycelial/mycelial/releases/latest/download/myceliald-x86_64-unknown-linux-gnu.tgz", "myceliald-x86_64-unknown-linux-gnu.tgz").await?;
+            }
+            "aarch64" => {
+                download_and_unarchive("https://github.com/mycelial/mycelial/releases/latest/download/server-aarch64-unknown-linux-gnu.tgz" , "server-aarch64-unknown-linux-gnu.tgz").await?;
+                download_and_unarchive("https://github.com/mycelial/mycelial/releases/latest/download/myceliald-aarch64-unknown-linux-gnu.tgz", "myceliald-aarch64-unknown-linux-gnu.tgz").await?;
+            }
+            "arm" => {
+                download_and_unarchive("https://github.com/mycelial/mycelial/releases/latest/download/server-arm-unknown-linux-gnueabihf.tgz" , "server-arm-unknown-linux-gnueabihf.tgz").await?;
+                download_and_unarchive("https://github.com/mycelial/mycelial/releases/latest/download/myceliald-arm-unknown-linux-gnueabihf.tgz", "myceliald-arm-unknown-linux-gnueabihf.tgz").await?;
+            }
+            _ => {
+                panic!("Unsupported architecture");
+            }
+        },
+        "macos" => match std::env::consts::ARCH {
+            "x86_64" => {
+                download_and_unarchive("https://github.com/mycelial/mycelial/releases/latest/download/server-x86_64-apple-darwin.tgz", "server-x86_64-apple-darwin.tgz").await?;
+                download_and_unarchive("https://github.com/mycelial/mycelial/releases/latest/download/myceliald-x86_64-apple-darwin.tgz", "myceliald-x86_64-apple-darwin.tgz").await?;
+            }
+            "aarch64" => {
+                download_and_unarchive("https://github.com/mycelial/mycelial/releases/latest/download/server-aarch64-apple-darwin.tgz", "server-aarch64-apple-darwin.tgz").await?;
+                download_and_unarchive("https://github.com/mycelial/mycelial/releases/latest/download/myceliald-aarch64-apple-darwin.tgz", "myceliald-aarch64-apple-darwin.tgz").await?;
+            }
+            _ => {
+                panic!("Unsupported architecture");
+            }
+        },
+        _ => {
+            panic!("Unsupported OS");
         }
     }
     Ok(())
@@ -277,8 +248,12 @@ async fn create_config() -> Result<()> {
         let options = vec!["Add Source", "Add Destination", "Exit"];
         let answer = Select::new("What would you like to do?", options).prompt()?;
         if answer == "Exit" {
-            tables.insert("sources".into(), Value::Array(sources));
-            tables.insert("destinations".into(), Value::Array(destinations));
+            if sources.len() > 0 {
+                tables.insert("sources".into(), Value::Array(sources));
+            }
+            if destinations.len() > 0 {
+                tables.insert("destinations".into(), Value::Array(destinations));
+            }
             let toml_string =
                 toml::to_string(&Value::Table(tables)).expect("Could not encode TOML value");
             let result = fs::write("config.toml", toml_string);
