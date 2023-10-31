@@ -248,8 +248,12 @@ async fn create_config() -> Result<()> {
         let options = vec!["Add Source", "Add Destination", "Exit"];
         let answer = Select::new("What would you like to do?", options).prompt()?;
         if answer == "Exit" {
-            tables.insert("sources".into(), Value::Array(sources));
-            tables.insert("destinations".into(), Value::Array(destinations));
+            if sources.len() > 0 {
+                tables.insert("sources".into(), Value::Array(sources));
+            }
+            if destinations.len() > 0 {
+                tables.insert("destinations".into(), Value::Array(destinations));
+            }
             let toml_string =
                 toml::to_string(&Value::Table(tables)).expect("Could not encode TOML value");
             let result = fs::write("config.toml", toml_string);
