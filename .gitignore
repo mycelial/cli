@@ -15,3 +15,4 @@ config.toml
 client.sqlite
 mycelial.db
 *.log
+.DS_Store

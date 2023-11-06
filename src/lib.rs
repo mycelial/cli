@@ -36,7 +36,7 @@ pub async fn start() -> Result<()> {
     destroy().await?;
     do_start().await?;
     println!("{}", "Mycelial started!".green());
-    println!("{}", "Running on `http://localhost:8080`".green());
+    println!("{}", "Running on `http://localhost:7777`".green());
     Ok(())
 }
 
@@ -228,7 +228,7 @@ async fn create_config() -> Result<()> {
     tables.insert("node".into(), Value::Table(node_table));
 
     let server = Text::new("Server:")
-        .with_default("http://localhost:8080")
+        .with_default("http://localhost:7777")
         .with_validator(required!("This field is required"))
         .with_help_message("Server address")
         .prompt()?;
