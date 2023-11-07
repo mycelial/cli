@@ -363,6 +363,51 @@ fn prompt_postgres_destination(destinations: &mut Vec<Value>) -> Result<()> {
     Ok(())
 }
 
+fn prompt_mysql_destination(destinations: &mut Vec<Value>) -> Result<()> {
+    let name = Text::new("Display name:")
+        .with_default("Mysql Destination")
+        .with_validator(required!("This field is required"))
+        .with_help_message("Display Name")
+        .prompt()?;
+    let user = Text::new("Mysql username:")
+        .with_default("user")
+        .with_validator(required!("This field is required"))
+        .with_help_message("Postgres Username")
+        .prompt()?;
+    let password = Password::new("mysql password:")
+        .with_validator(required!("This field is required"))
+        .with_help_message("Password")
+        .prompt()?;
+    let address = Text::new("Server address:")
+        .with_default("127.0.0.1")
+        .with_validator(required!("This field is required"))
+        .with_help_message("Server address")
+        .prompt()?;
+    let port = Text::new("Mysql port:")
+        .with_default("3306")
+        .with_validator(required!("This field is required"))
+        .with_help_message("Mysql port")
+        .prompt()?;
+    let database = Text::new("Database name:")
+        .with_default("db")
+        .with_validator(required!("This field is required"))
+        .with_help_message("Database name")
+        .prompt()?;
+    let postgres_url = format!(
+        "mysql://{}:{}@{}:{}/{}",
+        user, password, address, port, database
+    );
+    let mut destination_table = Map::new();
+    destination_table.insert(
+        "type".to_string(),
+        Value::String("mysql_connector".to_string()),
+    );
+    destination_table.insert("display_name".to_string(), Value::String(name));
+    destination_table.insert("url".to_string(), Value::String(postgres_url));
+    destinations.push(Value::Table(destination_table));
+    Ok(())
+}
+
 async fn create_config() -> Result<()> {
     let mut tables = Map::new();
     let mut node_table = Map::new();
@@ -448,10 +493,12 @@ async fn create_config() -> Result<()> {
             const MYCELITE_DESTINATION: &str = "Full SQLite replication destination";
             const SQLITE_DESTINATION: &str = "Append only SQLite destination";
             const POSTGRES_DESTINATION: &str = "Postgres destination";
+            const MYSQL_DESTINATION: &str = "MySQL destination";
             let options = vec![
                 MYCELITE_DESTINATION,
                 SQLITE_DESTINATION,
                 POSTGRES_DESTINATION,
+                MYSQL_DESTINATION,
             ];
             let destination =
                 Select::new("What type of destination would you like to add?", options).prompt()?;
@@ -464,6 +511,9 @@ async fn create_config() -> Result<()> {
                 }
                 POSTGRES_DESTINATION => {
                     prompt_postgres_destination(&mut destinations)?;
+                }
+                MYSQL_DESTINATION => {
+                    prompt_mysql_destination(&mut destinations)?;
                 }
                 _ => {
                     panic!("Unknown destination type");
