@@ -320,7 +320,7 @@ fn prompt_sqlite_destination(destinations: &mut Vec<Value>) -> Result<()> {
 
 fn prompt_postgres_destination(destinations: &mut Vec<Value>) -> Result<()> {
     let name = Text::new("Display name:")
-        .with_default("Postgres Destination")
+        .with_default("Postgres Append Only Destination")
         .with_validator(required!("This field is required"))
         .with_help_message("Display Name")
         .prompt()?;
@@ -365,7 +365,7 @@ fn prompt_postgres_destination(destinations: &mut Vec<Value>) -> Result<()> {
 
 fn prompt_mysql_destination(destinations: &mut Vec<Value>) -> Result<()> {
     let name = Text::new("Display name:")
-        .with_default("Mysql Destination")
+        .with_default("Mysql Append Only Destination")
         .with_validator(required!("This field is required"))
         .with_help_message("Display Name")
         .prompt()?;
@@ -492,8 +492,8 @@ async fn create_config() -> Result<()> {
         } else if answer == ADD_DESTINATION {
             const MYCELITE_DESTINATION: &str = "Full SQLite replication destination";
             const SQLITE_DESTINATION: &str = "Append only SQLite destination";
-            const POSTGRES_DESTINATION: &str = "Postgres destination";
-            const MYSQL_DESTINATION: &str = "MySQL destination";
+            const POSTGRES_DESTINATION: &str = "Append only Postgres destination";
+            const MYSQL_DESTINATION: &str = "Append only MySQL destination";
             let options = vec![
                 MYCELITE_DESTINATION,
                 SQLITE_DESTINATION,
