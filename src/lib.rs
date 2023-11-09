@@ -1,8 +1,11 @@
 use colored::*;
 use flate2::read::GzDecoder;
+use indicatif::{ProgressBar, ProgressState, ProgressStyle};
+use std::cmp::min;
 use std::env::current_dir;
+use std::fmt;
 use std::fs::{self, read_to_string, remove_file, File};
-use std::io::{Cursor, Write};
+use std::io::Write;
 use std::path::Path;
 use std::process::Stdio;
 use tar::Archive;
@@ -18,10 +21,9 @@ enum Executable {
     Client,
 }
 
-pub async fn init() -> Result<()> {
+pub async fn init(client: bool, server: bool) -> Result<()> {
     println!("{}", "Initializing Mycelial".green());
-    println!("{}", "Downloading binaries...".green());
-    download_binaries().await?;
+    download_binaries(client, server).await?;
     println!(
         "{}",
         "Create a config file by answering the following questions.".green()
@@ -161,20 +163,39 @@ fn save_pid(executable: Executable, pid: u32) -> Result<()> {
     Ok(())
 }
 
-async fn download_binaries() -> Result<()> {
+async fn download_binaries(client: bool, server: bool) -> Result<()> {
+    if server && client {
+        println!("Downloading and unarchiving server and myceliald (client)...");
+    } else if server {
+        println!("Downloading and unarchiving server...");
+    } else if client {
+        println!("Downloading and unarchiving myceliald (client)...");
+    }
     match std::env::consts::OS {
         "linux" => match std::env::consts::ARCH {
             "x86_64" => {
-                download_and_unarchive("https://github.com/mycelial/mycelial/releases/latest/download/server-x86_64-unknown-linux-gnu.tgz" , "server-x86_64-unknown-linux-gnu.tgz").await?;
-                download_and_unarchive("https://github.com/mycelial/mycelial/releases/latest/download/myceliald-x86_64-unknown-linux-gnu.tgz", "myceliald-x86_64-unknown-linux-gnu.tgz").await?;
+                if server {
+                    download_and_unarchive("https://github.com/mycelial/mycelial/releases/latest/download/server-x86_64-unknown-linux-gnu.tgz" , "server-x86_64-unknown-linux-gnu.tgz").await?;
+                }
+                if client {
+                    download_and_unarchive("https://github.com/mycelial/mycelial/releases/latest/download/myceliald-x86_64-unknown-linux-gnu.tgz", "myceliald-x86_64-unknown-linux-gnu.tgz").await?;
+                }
             }
             "aarch64" => {
-                download_and_unarchive("https://github.com/mycelial/mycelial/releases/latest/download/server-aarch64-unknown-linux-gnu.tgz" , "server-aarch64-unknown-linux-gnu.tgz").await?;
-                download_and_unarchive("https://github.com/mycelial/mycelial/releases/latest/download/myceliald-aarch64-unknown-linux-gnu.tgz", "myceliald-aarch64-unknown-linux-gnu.tgz").await?;
+                if server {
+                    download_and_unarchive("https://github.com/mycelial/mycelial/releases/latest/download/server-aarch64-unknown-linux-gnu.tgz" , "server-aarch64-unknown-linux-gnu.tgz").await?;
+                }
+                if client {
+                    download_and_unarchive("https://github.com/mycelial/mycelial/releases/latest/download/myceliald-aarch64-unknown-linux-gnu.tgz", "myceliald-aarch64-unknown-linux-gnu.tgz").await?;
+                }
             }
             "arm" => {
-                download_and_unarchive("https://github.com/mycelial/mycelial/releases/latest/download/server-arm-unknown-linux-gnueabihf.tgz" , "server-arm-unknown-linux-gnueabihf.tgz").await?;
-                download_and_unarchive("https://github.com/mycelial/mycelial/releases/latest/download/myceliald-arm-unknown-linux-gnueabihf.tgz", "myceliald-arm-unknown-linux-gnueabihf.tgz").await?;
+                if server {
+                    download_and_unarchive("https://github.com/mycelial/mycelial/releases/latest/download/server-arm-unknown-linux-gnueabihf.tgz" , "server-arm-unknown-linux-gnueabihf.tgz").await?;
+                }
+                if client {
+                    download_and_unarchive("https://github.com/mycelial/mycelial/releases/latest/download/myceliald-arm-unknown-linux-gnueabihf.tgz", "myceliald-arm-unknown-linux-gnueabihf.tgz").await?;
+                }
             }
             _ => {
                 panic!("Unsupported architecture");
@@ -182,12 +203,20 @@ async fn download_binaries() -> Result<()> {
         },
         "macos" => match std::env::consts::ARCH {
             "x86_64" => {
-                download_and_unarchive("https://github.com/mycelial/mycelial/releases/latest/download/server-x86_64-apple-darwin.tgz", "server-x86_64-apple-darwin.tgz").await?;
-                download_and_unarchive("https://github.com/mycelial/mycelial/releases/latest/download/myceliald-x86_64-apple-darwin.tgz", "myceliald-x86_64-apple-darwin.tgz").await?;
+                if server {
+                    download_and_unarchive("https://github.com/mycelial/mycelial/releases/latest/download/server-x86_64-apple-darwin.tgz", "server-x86_64-apple-darwin.tgz").await?;
+                }
+                if client {
+                    download_and_unarchive("https://github.com/mycelial/mycelial/releases/latest/download/myceliald-x86_64-apple-darwin.tgz", "myceliald-x86_64-apple-darwin.tgz").await?;
+                }
             }
             "aarch64" => {
-                download_and_unarchive("https://github.com/mycelial/mycelial/releases/latest/download/server-aarch64-apple-darwin.tgz", "server-aarch64-apple-darwin.tgz").await?;
-                download_and_unarchive("https://github.com/mycelial/mycelial/releases/latest/download/myceliald-aarch64-apple-darwin.tgz", "myceliald-aarch64-apple-darwin.tgz").await?;
+                if server {
+                    download_and_unarchive("https://github.com/mycelial/mycelial/releases/latest/download/server-aarch64-apple-darwin.tgz", "server-aarch64-apple-darwin.tgz").await?;
+                }
+                if client {
+                    download_and_unarchive("https://github.com/mycelial/mycelial/releases/latest/download/myceliald-aarch64-apple-darwin.tgz", "myceliald-aarch64-apple-darwin.tgz").await?;
+                }
             }
             _ => {
                 panic!("Unsupported architecture");
@@ -246,22 +275,28 @@ async fn start_client() -> Result<()> {
     save_pid(Executable::Client, client_process.id())?;
     Ok(())
 }
-
 pub async fn download_and_unarchive(url: &str, file_name: &str) -> Result<()> {
-    print!("Downloading {}...", file_name);
-    std::io::stdout().flush()?;
-    let response = reqwest::get(url).await?;
-    let mut file = std::fs::File::create(file_name)?;
-    let mut content = Cursor::new(response.bytes().await?);
-    std::io::copy(&mut content, &mut file)?;
-    println!("done!");
-    print!("Unarchiving {}...", file_name);
-    std::io::stdout().flush()?;
+    let client = reqwest::Client::new();
+    let mut response = client.get(url).send().await?;
+    let mut file = File::create(file_name)?;
+    let mut downloaded: u64 = 0;
+    let length = response.content_length().unwrap_or(0);
+    let pb = ProgressBar::new(length);
+    pb.set_style(ProgressStyle::with_template("{spinner:.green} [{elapsed_precise}] [{wide_bar:.cyan/blue}] {bytes}/{total_bytes} ({eta})")
+        .unwrap()
+        .with_key("eta", |state: &ProgressState, w: &mut dyn fmt::Write| write!(w, "{:.1}s", state.eta().as_secs_f64()).unwrap())
+        .progress_chars("#>-"));
+    while let Some(chunk) = response.chunk().await? {
+        file.write_all(&chunk)?;
+        let new = min(downloaded + chunk.len() as u64, length);
+        downloaded = new;
+        pb.set_position(new);
+    }
+    pb.finish_with_message("download complete");
     let tar_gz = File::open(file_name)?;
     let tar = GzDecoder::new(tar_gz);
     let mut archive = Archive::new(tar);
     archive.unpack(".")?;
-    println!("done!");
     remove_file(file_name)?;
     Ok(())
 }

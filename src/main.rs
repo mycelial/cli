@@ -16,6 +16,12 @@ enum Commands {
         /// download both the server and the client
         #[arg(short, long)]
         local: bool,
+        /// download the client
+        #[arg(short, long)]
+        client: bool,
+        /// download the server
+        #[arg(short, long)]
+        server: bool,
     },
     /// starts the server and myceliald (client)
     Start {
@@ -51,12 +57,18 @@ async fn main() {
 
 async fn run(args: Cli) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     match args.command {
-        Commands::Init { local } => {
+        Commands::Init {
+            local,
+            client,
+            server,
+        } => {
             if local {
-                init().await?;
+                init(true, true).await?;
+            } else if client || server {
+                init(client, server).await?;
             } else {
                 return Err(
-                    "init command must be run with --local option ex: `mycelial init --local`"
+                    "init command must be run with the --local, --client and/or --server options"
                         .into(),
                 );
             }
