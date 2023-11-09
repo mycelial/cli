@@ -7,7 +7,7 @@ edition = "2021"
 
 [dependencies]
 clap = { version = "4.4.6", features = ["derive"] }
-reqwest = "0.11.22"
+reqwest = { version = "0.11", features = ["stream"] }
 flate2 = "1.0.28"
 tokio = { version = "1", features = ["full"] }
 tar = { package = "binstall-tar", version = "0.4.39" }
@@ -16,3 +16,5 @@ toml = "0.8.2"
 dirs = "5.0"
 nix = { version = "0.27.1", features = ["signal"] }
 colored = "2"
+indicatif = "0.17.7"
+futures-util = "0.3.14"

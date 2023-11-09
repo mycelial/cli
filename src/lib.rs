@@ -1,8 +1,11 @@
 use colored::*;
 use flate2::read::GzDecoder;
+use indicatif::{ProgressBar, ProgressState, ProgressStyle};
+use std::cmp::min;
 use std::env::current_dir;
+use std::fmt;
 use std::fs::{self, read_to_string, remove_file, File};
-use std::io::{Cursor, Write};
+use std::io::Write;
 use std::path::Path;
 use std::process::Stdio;
 use tar::Archive;
@@ -13,10 +16,14 @@ use inquire::{required, Password, Select, Text};
 
 type Result<T> = std::result::Result<T, Box<dyn std::error::Error + Send + Sync>>;
 
-pub async fn init() -> Result<()> {
+enum Executable {
+    Server,
+    Client,
+}
+
+pub async fn init(client: bool, server: bool) -> Result<()> {
     println!("{}", "Initializing Mycelial".green());
-    println!("{}", "Downloading binaries...".green());
-    download_binaries().await?;
+    download_binaries(client, server).await?;
     println!(
         "{}",
         "Create a config file by answering the following questions.".green()
@@ -25,48 +32,85 @@ pub async fn init() -> Result<()> {
     Ok(())
 }
 
-pub async fn start() -> Result<()> {
-    if can_start() {
-        println!(
-            "{}",
-            "You must run `mycelial --local init` before `mycelial start`".red()
-        );
-        return Ok(());
+pub async fn start(client: bool, server: bool) -> Result<()> {
+    destroy(client, server).await?;
+    if server {
+        if !can_start_server() {
+            println!(
+                "{}",
+                "Missing server binary. You must run `mycelial --local init` before `mycelial start`".red()
+            );
+            return Ok(());
+        }
+        start_server().await?;
+        println!("{}", "Server started on `http://localhost:7777`".green());
     }
-    destroy().await?;
-    do_start().await?;
-    println!("{}", "Mycelial started!".green());
-    println!("{}", "Running on `http://localhost:7777`".green());
+    if client {
+        if !can_start_client() {
+            println!(
+                "{}",
+                "Missing myceliald binary. You must run `mycelial --local init` before `mycelial start`".red()
+            );
+            return Ok(());
+        }
+        start_client().await?;
+        println!("{}", "Myceliald (client) started!".green());
+    }
     Ok(())
 }
 
-pub async fn destroy() -> Result<()> {
-    println!("{}", "Destroying myceliald and server...".green());
-    let pids = get_pids();
-    for pid in pids {
-        let pid_int = pid.parse::<i32>().unwrap();
-        let result = nix::sys::signal::kill(
-            nix::unistd::Pid::from_raw(pid_int),
-            nix::sys::signal::SIGKILL,
-        );
-        match result {
-            Ok(_) => {
-                println!("killed pid {}", pid);
-            }
-            Err(_err) => {
-                eprintln!("error killing pid {}", pid);
+pub async fn destroy(client: bool, server: bool) -> Result<()> {
+    if client {
+        let pids = get_pids(Executable::Client);
+        for pid in pids {
+            let pid_int = pid.parse::<i32>().unwrap();
+            let result = nix::sys::signal::kill(
+                nix::unistd::Pid::from_raw(pid_int),
+                nix::sys::signal::SIGKILL,
+            );
+            match result {
+                Ok(_) => {
+                    println!("killed client pid {}", pid);
+                }
+                Err(_err) => {
+                    eprintln!("error killing client pid {}", pid);
+                }
             }
         }
+        delete_pids_file(Executable::Client)?;
     }
-    delete_pids_file()
+    if server {
+        let pids = get_pids(Executable::Server);
+        for pid in pids {
+            let pid_int = pid.parse::<i32>().unwrap();
+            let result = nix::sys::signal::kill(
+                nix::unistd::Pid::from_raw(pid_int),
+                nix::sys::signal::SIGKILL,
+            );
+            match result {
+                Ok(_) => {
+                    println!("killed server pid {}", pid);
+                }
+                Err(_err) => {
+                    eprintln!("error killing server pid {}", pid);
+                }
+            }
+        }
+        delete_pids_file(Executable::Server)?;
+    }
+    Ok(())
 }
 
-fn delete_pids_file() -> Result<()> {
-    let file_name = get_pid_file();
-    let result = fs::remove_file(file_name);
+fn delete_pids_file(executable: Executable) -> Result<()> {
+    let file_name = get_pid_file(&executable);
+    let result = fs::remove_file(&file_name);
     match result {
         Ok(_) => {
-            println!("deleted pid file");
+            let which = match executable {
+                Executable::Server => "server",
+                Executable::Client => "client",
+            };
+            println!("deleted {} pid file ({})", which, file_name);
         }
         Err(_error) => {
             // pids file (~/.mycelial) may not exist, so ignore errors
@@ -75,14 +119,16 @@ fn delete_pids_file() -> Result<()> {
     Ok(())
 }
 
-fn get_pid_file() -> String {
+fn get_pid_file(executable: &Executable) -> String {
     let home_dir = dirs::home_dir().unwrap();
-    let file_name = format!("{}/.mycelial", home_dir.display());
-    file_name
+    match executable {
+        Executable::Server => format!("{}/.mycelial/server.pid", home_dir.display()),
+        Executable::Client => format!("{}/.mycelial/myceliald.pid", home_dir.display()),
+    }
 }
 
-fn get_pids() -> Vec<String> {
-    let file_name = get_pid_file();
+fn get_pids(executable: Executable) -> Vec<String> {
+    let file_name = get_pid_file(&executable);
     let mut pids = Vec::new();
     let result = read_to_string(file_name);
     match result {
@@ -98,20 +144,58 @@ fn get_pids() -> Vec<String> {
     pids
 }
 
-async fn download_binaries() -> Result<()> {
+fn create_pid_file_dir() -> Result<()> {
+    let dir_name = format!("{}/.mycelial", dirs::home_dir().unwrap().display());
+    let path = Path::new(&dir_name);
+    fs::create_dir_all(path)?;
+    Ok(())
+}
+
+fn save_pid(executable: Executable, pid: u32) -> Result<()> {
+    create_pid_file_dir()?;
+    let file_name = get_pid_file(&executable);
+    let mut file = std::fs::OpenOptions::new()
+        .write(true)
+        .append(true)
+        .create(true)
+        .open(file_name)?;
+    file.write_all(format!("{}\n", pid).as_bytes())?;
+    Ok(())
+}
+
+async fn download_binaries(client: bool, server: bool) -> Result<()> {
+    if server && client {
+        println!("Downloading and unarchiving server and myceliald (client)...");
+    } else if server {
+        println!("Downloading and unarchiving server...");
+    } else if client {
+        println!("Downloading and unarchiving myceliald (client)...");
+    }
     match std::env::consts::OS {
         "linux" => match std::env::consts::ARCH {
             "x86_64" => {
-                download_and_unarchive("https://github.com/mycelial/mycelial/releases/latest/download/server-x86_64-unknown-linux-gnu.tgz" , "server-x86_64-unknown-linux-gnu.tgz").await?;
-                download_and_unarchive("https://github.com/mycelial/mycelial/releases/latest/download/myceliald-x86_64-unknown-linux-gnu.tgz", "myceliald-x86_64-unknown-linux-gnu.tgz").await?;
+                if server {
+                    download_and_unarchive("https://github.com/mycelial/mycelial/releases/latest/download/server-x86_64-unknown-linux-gnu.tgz" , "server-x86_64-unknown-linux-gnu.tgz").await?;
+                }
+                if client {
+                    download_and_unarchive("https://github.com/mycelial/mycelial/releases/latest/download/myceliald-x86_64-unknown-linux-gnu.tgz", "myceliald-x86_64-unknown-linux-gnu.tgz").await?;
+                }
             }
             "aarch64" => {
-                download_and_unarchive("https://github.com/mycelial/mycelial/releases/latest/download/server-aarch64-unknown-linux-gnu.tgz" , "server-aarch64-unknown-linux-gnu.tgz").await?;
-                download_and_unarchive("https://github.com/mycelial/mycelial/releases/latest/download/myceliald-aarch64-unknown-linux-gnu.tgz", "myceliald-aarch64-unknown-linux-gnu.tgz").await?;
+                if server {
+                    download_and_unarchive("https://github.com/mycelial/mycelial/releases/latest/download/server-aarch64-unknown-linux-gnu.tgz" , "server-aarch64-unknown-linux-gnu.tgz").await?;
+                }
+                if client {
+                    download_and_unarchive("https://github.com/mycelial/mycelial/releases/latest/download/myceliald-aarch64-unknown-linux-gnu.tgz", "myceliald-aarch64-unknown-linux-gnu.tgz").await?;
+                }
             }
             "arm" => {
-                download_and_unarchive("https://github.com/mycelial/mycelial/releases/latest/download/server-arm-unknown-linux-gnueabihf.tgz" , "server-arm-unknown-linux-gnueabihf.tgz").await?;
-                download_and_unarchive("https://github.com/mycelial/mycelial/releases/latest/download/myceliald-arm-unknown-linux-gnueabihf.tgz", "myceliald-arm-unknown-linux-gnueabihf.tgz").await?;
+                if server {
+                    download_and_unarchive("https://github.com/mycelial/mycelial/releases/latest/download/server-arm-unknown-linux-gnueabihf.tgz" , "server-arm-unknown-linux-gnueabihf.tgz").await?;
+                }
+                if client {
+                    download_and_unarchive("https://github.com/mycelial/mycelial/releases/latest/download/myceliald-arm-unknown-linux-gnueabihf.tgz", "myceliald-arm-unknown-linux-gnueabihf.tgz").await?;
+                }
             }
             _ => {
                 panic!("Unsupported architecture");
@@ -119,12 +203,20 @@ async fn download_binaries() -> Result<()> {
         },
         "macos" => match std::env::consts::ARCH {
             "x86_64" => {
-                download_and_unarchive("https://github.com/mycelial/mycelial/releases/latest/download/server-x86_64-apple-darwin.tgz", "server-x86_64-apple-darwin.tgz").await?;
-                download_and_unarchive("https://github.com/mycelial/mycelial/releases/latest/download/myceliald-x86_64-apple-darwin.tgz", "myceliald-x86_64-apple-darwin.tgz").await?;
+                if server {
+                    download_and_unarchive("https://github.com/mycelial/mycelial/releases/latest/download/server-x86_64-apple-darwin.tgz", "server-x86_64-apple-darwin.tgz").await?;
+                }
+                if client {
+                    download_and_unarchive("https://github.com/mycelial/mycelial/releases/latest/download/myceliald-x86_64-apple-darwin.tgz", "myceliald-x86_64-apple-darwin.tgz").await?;
+                }
             }
             "aarch64" => {
-                download_and_unarchive("https://github.com/mycelial/mycelial/releases/latest/download/server-aarch64-apple-darwin.tgz", "server-aarch64-apple-darwin.tgz").await?;
-                download_and_unarchive("https://github.com/mycelial/mycelial/releases/latest/download/myceliald-aarch64-apple-darwin.tgz", "myceliald-aarch64-apple-darwin.tgz").await?;
+                if server {
+                    download_and_unarchive("https://github.com/mycelial/mycelial/releases/latest/download/server-aarch64-apple-darwin.tgz", "server-aarch64-apple-darwin.tgz").await?;
+                }
+                if client {
+                    download_and_unarchive("https://github.com/mycelial/mycelial/releases/latest/download/myceliald-aarch64-apple-darwin.tgz", "myceliald-aarch64-apple-darwin.tgz").await?;
+                }
             }
             _ => {
                 panic!("Unsupported architecture");
@@ -137,10 +229,9 @@ async fn download_binaries() -> Result<()> {
     Ok(())
 }
 
-async fn do_start() -> Result<()> {
-    println!("Starting Mycelial...");
+async fn start_server() -> Result<()> {
+    println!("Starting Mycelial Server...");
     let server_log_file = File::create("server.log")?;
-    let myceliald_log_file = File::create("myceliald.log")?;
     let token = Password::new("Enter Security Token:")
         .with_validator(required!("This field is required"))
         .with_help_message("Token")
@@ -159,6 +250,13 @@ async fn do_start() -> Result<()> {
         Ok(process) => process,
         Err(e) => panic!("failed to execute process: {}", e),
     };
+    save_pid(Executable::Server, server_process.id())?;
+    Ok(())
+}
+
+async fn start_client() -> Result<()> {
+    println!("Starting myceliald (client)...");
+    let myceliald_log_file = File::create("myceliald.log")?;
     let client_process = match std::process::Command::new("./myceliald")
         .arg("--config")
         .arg("config.toml")
@@ -174,33 +272,31 @@ async fn do_start() -> Result<()> {
         Ok(process) => process,
         Err(e) => panic!("failed to execute process: {}", e),
     };
-    // println!("myceliald started with pid {:?}", client_process.id());
-    let file_name = get_pid_file();
-    let mut file = std::fs::OpenOptions::new()
-        .write(true)
-        .append(true)
-        .create(true)
-        .open(file_name)?;
-    file.write_all(format!("{}\n", server_process.id()).as_bytes())?;
-    file.write_all(format!("{}\n", client_process.id()).as_bytes())?;
+    save_pid(Executable::Client, client_process.id())?;
     Ok(())
 }
-
 pub async fn download_and_unarchive(url: &str, file_name: &str) -> Result<()> {
-    print!("Downloading {}...", file_name);
-    std::io::stdout().flush()?;
-    let response = reqwest::get(url).await?;
-    let mut file = std::fs::File::create(file_name)?;
-    let mut content = Cursor::new(response.bytes().await?);
-    std::io::copy(&mut content, &mut file)?;
-    println!("done!");
-    print!("Unarchiving {}...", file_name);
-    std::io::stdout().flush()?;
+    let client = reqwest::Client::new();
+    let mut response = client.get(url).send().await?;
+    let mut file = File::create(file_name)?;
+    let mut downloaded: u64 = 0;
+    let length = response.content_length().unwrap_or(0);
+    let pb = ProgressBar::new(length);
+    pb.set_style(ProgressStyle::with_template("{spinner:.green} [{elapsed_precise}] [{wide_bar:.cyan/blue}] {bytes}/{total_bytes} ({eta})")
+        .unwrap()
+        .with_key("eta", |state: &ProgressState, w: &mut dyn fmt::Write| write!(w, "{:.1}s", state.eta().as_secs_f64()).unwrap())
+        .progress_chars("#>-"));
+    while let Some(chunk) = response.chunk().await? {
+        file.write_all(&chunk)?;
+        let new = min(downloaded + chunk.len() as u64, length);
+        downloaded = new;
+        pb.set_position(new);
+    }
+    pb.finish_with_message("download complete");
     let tar_gz = File::open(file_name)?;
     let tar = GzDecoder::new(tar_gz);
     let mut archive = Archive::new(tar);
     archive.unpack(".")?;
-    println!("done!");
     remove_file(file_name)?;
     Ok(())
 }
@@ -524,9 +620,13 @@ async fn create_config() -> Result<()> {
     Ok(())
 }
 
-fn can_start() -> bool {
-    let server_path = Path::new("server");
+fn can_start_client() -> bool {
     let myceliald_path = Path::new("myceliald");
     let config_path = Path::new("config.toml");
-    !server_path.exists() || !myceliald_path.exists() || !config_path.exists()
+    myceliald_path.exists() && config_path.exists()
+}
+
+fn can_start_server() -> bool {
+    let server_path = Path::new("server");
+    server_path.exists()
 }
