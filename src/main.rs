@@ -13,13 +13,28 @@ struct Cli {
 enum Commands {
     /// setup mycelial
     Init {
+        /// download both the server and the client
         #[arg(short, long)]
         local: bool,
     },
     /// starts the server and myceliald (client)
-    Start,
+    Start {
+        /// start the client
+        #[arg(short, long)]
+        client: bool,
+        /// start the server
+        #[arg(short, long)]
+        server: bool,
+    },
     /// stops the server and myceliald (client)
-    Destroy,
+    Destroy {
+        /// destroy the client
+        #[arg(short, long)]
+        client: bool,
+        /// destroy the server
+        #[arg(short, long)]
+        server: bool,
+    },
 }
 
 #[tokio::main]
@@ -46,11 +61,21 @@ async fn run(args: Cli) -> Result<(), Box<dyn std::error::Error + Send + Sync>> 
                 );
             }
         }
-        Commands::Start => {
-            start().await?;
+        Commands::Start { client, server } => {
+            // if neither client or server are specified, start both
+            if !client && !server {
+                start(true, true).await?;
+            } else {
+                start(client, server).await?;
+            }
         }
-        Commands::Destroy => {
-            destroy().await?;
+        Commands::Destroy { client, server } => {
+            // if neither client or server are specified, destroy both
+            if !client && !server {
+                destroy(true, true).await?;
+            } else {
+                destroy(client, server).await?;
+            }
         }
     }
     Ok(())
