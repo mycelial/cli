@@ -459,6 +459,31 @@ fn prompt_postgres_destination(destinations: &mut Vec<Value>) -> Result<()> {
     Ok(())
 }
 
+fn prompt_kafka_destination(destinations: &mut Vec<Value>) -> Result<()> {
+    let name = Text::new("Display name:")
+        .with_default("Kafka Destination")
+        .with_validator(required!("This field is required"))
+        .with_help_message("Display Name")
+        .prompt()?;
+    let broker = Text::new("Broker:")
+        .with_default("localhost:9092")
+        .with_validator(required!("This field is required"))
+        .with_help_message("Broker")
+        .prompt()?;
+    let topic = Text::new("Topic:")
+        .with_default("test")
+        .with_validator(required!("This field is required"))
+        .with_help_message("Topic")
+        .prompt()?;
+    let mut destination_table = Map::new();
+    destination_table.insert("type".to_string(), Value::String("kafka".to_string()));
+    destination_table.insert("display_name".to_string(), Value::String(name));
+    destination_table.insert("broker".to_string(), Value::String(broker));
+    destination_table.insert("topic".to_string(), Value::String(topic));
+    destinations.push(Value::Table(destination_table));
+    Ok(())
+}
+
 fn prompt_mysql_destination(destinations: &mut Vec<Value>) -> Result<()> {
     let name = Text::new("Display name:")
         .with_default("Mysql Append Only Destination")
@@ -590,11 +615,13 @@ async fn create_config() -> Result<()> {
             const SQLITE_DESTINATION: &str = "Append only SQLite destination";
             const POSTGRES_DESTINATION: &str = "Append only Postgres destination";
             const MYSQL_DESTINATION: &str = "Append only MySQL destination";
+            const KAFKA_DESTINATION: &str = "Kafka destination";
             let options = vec![
                 MYCELITE_DESTINATION,
                 SQLITE_DESTINATION,
                 POSTGRES_DESTINATION,
                 MYSQL_DESTINATION,
+                KAFKA_DESTINATION,
             ];
             let destination =
                 Select::new("What type of destination would you like to add?", options).prompt()?;
@@ -610,6 +637,9 @@ async fn create_config() -> Result<()> {
                 }
                 MYSQL_DESTINATION => {
                     prompt_mysql_destination(&mut destinations)?;
+                }
+                KAFKA_DESTINATION => {
+                    prompt_kafka_destination(&mut destinations)?;
                 }
                 _ => {
                     panic!("Unknown destination type");
