@@ -10,6 +10,7 @@ use std::path::Path;
 use std::process::Stdio;
 use tar::Archive;
 use toml::{map::Map, Value};
+use uuid::Uuid;
 extern crate dirs;
 
 use inquire::{required, Password, Select, Text};
@@ -544,8 +545,13 @@ async fn create_config() -> Result<()> {
         .with_help_message("Client ID")
         .prompt()?;
 
+    let id = Uuid::new_v4().to_string();
+
     node_table.insert("display_name".into(), Value::String(client_name));
-    node_table.insert("unique_id".into(), Value::String(client_id));
+    node_table.insert(
+        "unique_id".into(),
+        Value::String(format!("{}-{}", client_id, id)),
+    );
     node_table.insert("storage_path".into(), Value::String("client.sqlite".into()));
 
     tables.insert("node".into(), Value::Table(node_table));
