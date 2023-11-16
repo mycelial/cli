@@ -552,7 +552,7 @@ async fn create_config() -> Result<()> {
         "unique_id".into(),
         Value::String(format!("{}-{}", client_id, id)),
     );
-    node_table.insert("storage_path".into(), Value::String("client.sqlite".into()));
+    node_table.insert("storage_path".into(), Value::String("client.db".into()));
 
     tables.insert("node".into(), Value::Table(node_table));
 
