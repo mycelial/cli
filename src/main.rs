@@ -1,5 +1,5 @@
 use clap::{Parser, Subcommand};
-use mycelial::{destroy, init, start};
+use mycelial::{destroy, init, reset, start};
 
 #[derive(Debug, Parser)]
 #[command(name = "mycelial")]
@@ -38,6 +38,15 @@ enum Commands {
         #[arg(short, long)]
         client: bool,
         /// destroy the server
+        #[arg(short, long)]
+        server: bool,
+    },
+    /// deletes the server and/or client databases
+    Reset {
+        /// delete the client database
+        #[arg(short, long)]
+        client: bool,
+        /// delete the server database
         #[arg(short, long)]
         server: bool,
     },
@@ -87,6 +96,19 @@ async fn run(args: Cli) -> Result<(), Box<dyn std::error::Error + Send + Sync>> 
                 destroy(true, true).await?;
             } else {
                 destroy(client, server).await?;
+            }
+        }
+        Commands::Reset { client, server } => {
+            // if neither client or server are specified, destroy both
+            if !client && !server {
+                reset(true, true).await?;
+            } else {
+                if client {
+                    reset(true, false).await?;
+                }
+                if server {
+                    reset(false, true).await?;
+                }
             }
         }
     }

@@ -1,6 +1,7 @@
 use colored::*;
 use flate2::read::GzDecoder;
 use indicatif::{ProgressBar, ProgressState, ProgressStyle};
+use serde::Deserialize;
 use std::cmp::min;
 use std::env::current_dir;
 use std::fmt;
@@ -13,13 +14,23 @@ use toml::{map::Map, Value};
 use uuid::Uuid;
 extern crate dirs;
 
-use inquire::{required, Password, Select, Text};
+use inquire::{required, Confirm, Password, Select, Text};
 
 type Result<T> = std::result::Result<T, Box<dyn std::error::Error + Send + Sync>>;
 
 enum Executable {
     Server,
     Client,
+}
+
+#[derive(Deserialize)]
+struct Node {
+    storage_path: String,
+}
+
+#[derive(Deserialize)]
+struct Config {
+    node: Node,
 }
 
 pub async fn init(client: bool, server: bool) -> Result<()> {
@@ -98,6 +109,51 @@ pub async fn destroy(client: bool, server: bool) -> Result<()> {
             }
         }
         delete_pids_file(Executable::Server)?;
+    }
+    Ok(())
+}
+
+fn storage_path() -> Result<String> {
+    let config_path = Path::new("config.toml");
+    if !config_path.exists() {
+        return Err("config.toml does not exist".into());
+    }
+    let config_string = read_to_string(config_path)?;
+    let config: Config = toml::from_str(&config_string)?;
+    Ok(config.node.storage_path)
+}
+
+pub async fn reset(client: bool, server: bool) -> Result<()> {
+    let answer = Confirm::new("Are you sure you want to reset Mycelial?")
+        .with_default(false)
+        .with_help_message("This deletes all local state (sqlite databases)")
+        .prompt()?;
+    if answer {
+        let client_db_path = storage_path()?;
+        if client {
+            let result = remove_file(&client_db_path);
+            match result {
+                Ok(_) => {
+                    println!("{}", format!("{} deleted", client_db_path).green());
+                }
+                Err(_error) => {
+                    println!("{}", format!("{} does not exists", client_db_path).yellow());
+                }
+            }
+        }
+        if server {
+            let result = remove_file("mycelial.db");
+            match result {
+                Ok(_) => {
+                    println!("{}", "mycelial.db deleted!".green());
+                }
+                Err(_error) => {
+                    println!("{}", "mycelial.db does not exists".yellow());
+                }
+            }
+        }
+    } else {
+        println!("{}", "Reset cancelled".yellow());
     }
     Ok(())
 }
