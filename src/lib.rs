@@ -1,7 +1,6 @@
 use colored::*;
 use flate2::read::GzDecoder;
 use indicatif::{ProgressBar, ProgressState, ProgressStyle};
-use serde::Deserialize;
 use std::cmp::min;
 use std::env::current_dir;
 use std::fmt;
@@ -10,9 +9,10 @@ use std::io::Write;
 use std::path::Path;
 use std::process::Stdio;
 use tar::Archive;
-use toml::{map::Map, Value};
 use uuid::Uuid;
 extern crate dirs;
+mod config;
+use config::Config as Configuration;
 
 use inquire::{required, Confirm, Password, Select, Text};
 
@@ -23,28 +23,18 @@ enum Executable {
     Client,
 }
 
-#[derive(Deserialize)]
-struct Node {
-    storage_path: String,
-}
-
-#[derive(Deserialize)]
-struct Config {
-    node: Node,
-}
-
-pub async fn init(client: bool, server: bool) -> Result<()> {
+pub async fn init(client: bool, server: bool, config_file_name: String) -> Result<()> {
     println!("{}", "Initializing Mycelial".green());
     download_binaries(client, server).await?;
     println!(
         "{}",
         "Create a config file by answering the following questions.".green()
     );
-    create_config().await?;
+    create_config(config_file_name).await?;
     Ok(())
 }
 
-pub async fn start(client: bool, server: bool) -> Result<()> {
+pub async fn start(client: bool, server: bool, config_file_name: String) -> Result<()> {
     destroy(client, server).await?;
     if server {
         if !can_start_server() {
@@ -65,7 +55,7 @@ pub async fn start(client: bool, server: bool) -> Result<()> {
             );
             return Ok(());
         }
-        start_client().await?;
+        start_client(config_file_name).await?;
         println!("{}", "Myceliald (client) started!".green());
     }
     Ok(())
@@ -113,23 +103,22 @@ pub async fn destroy(client: bool, server: bool) -> Result<()> {
     Ok(())
 }
 
-fn storage_path() -> Result<String> {
-    let config_path = Path::new("config.toml");
-    if !config_path.exists() {
-        return Err("config.toml does not exist".into());
+fn storage_path(config_file_name: &str) -> Option<String> {
+    match Configuration::load(config_file_name) {
+        Ok(config) => {
+            return config.get_node_storage_path();
+        }
+        Err(_error) => return None,
     }
-    let config_string = read_to_string(config_path)?;
-    let config: Config = toml::from_str(&config_string)?;
-    Ok(config.node.storage_path)
 }
 
-pub async fn reset(client: bool, server: bool) -> Result<()> {
+pub async fn reset(client: bool, server: bool, config_file_name: &str) -> Result<()> {
     let answer = Confirm::new("Are you sure you want to reset Mycelial?")
         .with_default(false)
         .with_help_message("This deletes all local state (sqlite databases)")
         .prompt()?;
     if answer {
-        let client_db_path = storage_path()?;
+        let client_db_path = storage_path(config_file_name).unwrap();
         if client {
             let result = remove_file(&client_db_path);
             match result {
@@ -311,12 +300,12 @@ async fn start_server() -> Result<()> {
     Ok(())
 }
 
-async fn start_client() -> Result<()> {
+async fn start_client(config_file_name: String) -> Result<()> {
     println!("Starting myceliald (client)...");
     let myceliald_log_file = File::create("myceliald.log")?;
     let client_process = match std::process::Command::new("./myceliald")
         .arg("--config")
-        .arg("config.toml")
+        .arg(config_file_name)
         .stdin(Stdio::null())
         .stdout(Stdio::from(
             myceliald_log_file
@@ -358,9 +347,9 @@ pub async fn download_and_unarchive(url: &str, file_name: &str) -> Result<()> {
     Ok(())
 }
 
-fn prompt_sqlite_source(sources: &mut Vec<Value>) -> Result<()> {
+fn prompt_sqlite_source(config: &mut Configuration) -> Result<()> {
     let cwd = current_dir()?.into_os_string().into_string().unwrap();
-    let name = Text::new("Display name:")
+    let display_name = Text::new("Display name:")
         .with_default("SQLite Append Only Source")
         .with_validator(required!("This field is required"))
         .with_help_message("Display Name")
@@ -370,23 +359,14 @@ fn prompt_sqlite_source(sources: &mut Vec<Value>) -> Result<()> {
         .with_validator(required!("This field is required"))
         .with_help_message("Database path")
         .prompt()?;
-    let mut source_table = Map::new();
-    source_table.insert(
-        "type".to_string(),
-        Value::String("sqlite_connector".to_string()),
-    );
-    source_table.insert("display_name".to_string(), Value::String(name));
-    source_table.insert(
-        "path".to_string(),
-        Value::String(format!("{}/{}", cwd, path)),
-    );
-    sources.push(Value::Table(source_table));
+    let database_path = format!("{}/{}", cwd, path);
+    config.add_sqlite_connector_source(display_name, database_path);
     Ok(())
 }
 
-fn prompt_mycelite_source(sources: &mut Vec<Value>) -> Result<()> {
+fn prompt_mycelite_source(config: &mut Configuration) -> Result<()> {
     let cwd = current_dir()?.into_os_string().into_string().unwrap();
-    let name = Text::new("Display name:")
+    let display_name = Text::new("Display name:")
         .with_default("Example Source")
         .with_validator(required!("This field is required"))
         .with_help_message("Display Name")
@@ -396,28 +376,19 @@ fn prompt_mycelite_source(sources: &mut Vec<Value>) -> Result<()> {
         .with_validator(required!("This field is required"))
         .with_help_message("Journal path")
         .prompt()?;
-    let mut source_table = Map::new();
-    source_table.insert(
-        "type".to_string(),
-        Value::String("sqlite_physical_replication".to_string()),
-    );
-    source_table.insert("display_name".to_string(), Value::String(name));
-    source_table.insert(
-        "journal_path".to_string(),
-        Value::String(format!("{}/{}", cwd, path)),
-    );
-    sources.push(Value::Table(source_table));
+    let journal_path = format!("{}/{}", cwd, path);
+    config.add_sqlite_physical_replication_source(display_name, journal_path);
     Ok(())
 }
 
-fn prompt_mycelite_destination(destinations: &mut Vec<Value>) -> Result<()> {
+fn prompt_mycelite_destination(config: &mut Configuration) -> Result<()> {
     let cwd = current_dir()?.into_os_string().into_string().unwrap();
-    let name = Text::new("Display name:")
+    let display_name = Text::new("Display name:")
         .with_default("Example Destination")
         .with_validator(required!("This field is required"))
         .with_help_message("Display Name")
         .prompt()?;
-    let journal_path = Text::new("Journal Path:")
+    let path = Text::new("Journal Path:")
         .with_default("destination-sqlite-mycelial")
         .with_validator(required!("This field is required"))
         .with_help_message("Journal path")
@@ -427,25 +398,12 @@ fn prompt_mycelite_destination(destinations: &mut Vec<Value>) -> Result<()> {
         .with_validator(required!("This field is required"))
         .with_help_message("Database path and filename")
         .prompt()?;
-    let mut destination_table = Map::new();
-    destination_table.insert(
-        "type".to_string(),
-        Value::String("sqlite_physical_replication".to_string()),
-    );
-    destination_table.insert("display_name".to_string(), Value::String(name));
-    destination_table.insert(
-        "journal_path".to_string(),
-        Value::String(format!("{}/{}", cwd, journal_path)),
-    );
-    destination_table.insert(
-        "database_path".to_string(),
-        Value::String(format!("{}/{}", cwd, database_path)),
-    );
-    destinations.push(Value::Table(destination_table));
+    let journal_path = format!("{}/{}", cwd, path);
+    config.add_sqlite_physical_replication_destination(display_name, journal_path, database_path);
     Ok(())
 }
 
-fn prompt_sqlite_destination(destinations: &mut Vec<Value>) -> Result<()> {
+fn prompt_sqlite_destination(config: &mut Configuration) -> Result<()> {
     let cwd = current_dir()?.into_os_string().into_string().unwrap();
     let name = Text::new("Display name:")
         .with_default("SQLite Append Only Destination")
@@ -457,22 +415,13 @@ fn prompt_sqlite_destination(destinations: &mut Vec<Value>) -> Result<()> {
         .with_validator(required!("This field is required"))
         .with_help_message("Database path")
         .prompt()?;
-    let mut source_table = Map::new();
-    source_table.insert(
-        "type".to_string(),
-        Value::String("sqlite_connector".to_string()),
-    );
-    source_table.insert("display_name".to_string(), Value::String(name));
-    source_table.insert(
-        "path".to_string(),
-        Value::String(format!("{}/{}", cwd, path)),
-    );
-    destinations.push(Value::Table(source_table));
+    let database_path = format!("{}/{}", cwd, path);
+    config.add_sqlite_connector_destination(name, database_path);
     Ok(())
 }
 
-fn prompt_postgres_destination(destinations: &mut Vec<Value>) -> Result<()> {
-    let name = Text::new("Display name:")
+fn prompt_postgres_destination(config: &mut Configuration) -> Result<()> {
+    let display_name = Text::new("Display name:")
         .with_default("Postgres Append Only Destination")
         .with_validator(required!("This field is required"))
         .with_help_message("Display Name")
@@ -505,18 +454,12 @@ fn prompt_postgres_destination(destinations: &mut Vec<Value>) -> Result<()> {
         "postgres://{}:{}@{}:{}/{}",
         user, password, address, port, database
     );
-    let mut destination_table = Map::new();
-    destination_table.insert(
-        "type".to_string(),
-        Value::String("postgres_connector".to_string()),
-    );
-    destination_table.insert("display_name".to_string(), Value::String(name));
-    destination_table.insert("url".to_string(), Value::String(postgres_url));
-    destinations.push(Value::Table(destination_table));
+    config.add_postgres_connector_destination(display_name, postgres_url);
+
     Ok(())
 }
 
-fn prompt_kafka_destination(destinations: &mut Vec<Value>) -> Result<()> {
+fn prompt_kafka_destination(config: &mut Configuration) -> Result<()> {
     let name = Text::new("Display name:")
         .with_default("Kafka Destination")
         .with_validator(required!("This field is required"))
@@ -532,16 +475,11 @@ fn prompt_kafka_destination(destinations: &mut Vec<Value>) -> Result<()> {
         .with_validator(required!("This field is required"))
         .with_help_message("Topic")
         .prompt()?;
-    let mut destination_table = Map::new();
-    destination_table.insert("type".to_string(), Value::String("kafka".to_string()));
-    destination_table.insert("display_name".to_string(), Value::String(name));
-    destination_table.insert("broker".to_string(), Value::String(broker));
-    destination_table.insert("topic".to_string(), Value::String(topic));
-    destinations.push(Value::Table(destination_table));
+    config.add_kafka_destination(name, broker, topic);
     Ok(())
 }
 
-fn prompt_mysql_destination(destinations: &mut Vec<Value>) -> Result<()> {
+fn prompt_mysql_destination(config: &mut Configuration) -> Result<()> {
     let name = Text::new("Display name:")
         .with_default("Mysql Append Only Destination")
         .with_validator(required!("This field is required"))
@@ -575,20 +513,81 @@ fn prompt_mysql_destination(destinations: &mut Vec<Value>) -> Result<()> {
         "mysql://{}:{}@{}:{}/{}",
         user, password, address, port, database
     );
-    let mut destination_table = Map::new();
-    destination_table.insert(
-        "type".to_string(),
-        Value::String("mysql_connector".to_string()),
-    );
-    destination_table.insert("display_name".to_string(), Value::String(name));
-    destination_table.insert("url".to_string(), Value::String(postgres_url));
-    destinations.push(Value::Table(destination_table));
+    config.add_mysql_connector_destination(name, postgres_url);
     Ok(())
 }
 
-async fn create_config() -> Result<()> {
-    let mut tables = Map::new();
-    let mut node_table = Map::new();
+enum ConfigAction {
+    Create,
+    Append,
+}
+
+fn config_file_action(config_file_name: String) -> Result<(ConfigAction, std::string::String)> {
+    let config_path = Path::new(&config_file_name);
+    const OVERWRITE: &str = "Overwrite file";
+    const APPEND: &str = "Append to file";
+    const RENAME: &str = "Rename file";
+    let options = vec![OVERWRITE, APPEND, RENAME];
+    if !config_path.exists() {
+        return Ok((ConfigAction::Create, config_file_name));
+    } else {
+        let answer = Select::new(
+            &format!(
+                "The config file `{}` already exists, what would you like to do?",
+                config_file_name
+            ),
+            options,
+        )
+        .prompt()?;
+        match answer {
+            OVERWRITE => {
+                return Ok((ConfigAction::Create, config_file_name));
+            }
+            APPEND => {
+                return Ok((ConfigAction::Append, config_file_name));
+            }
+            RENAME => {
+                let new_config_file_name = Text::new("New config file name:")
+                    .with_default("config.toml")
+                    .with_validator(required!("This field is required"))
+                    .with_help_message("New config file name")
+                    .prompt()?;
+                let result = config_file_action(new_config_file_name)?;
+                return Ok(result);
+            }
+            _ => {
+                panic!("Unknown config file action");
+            }
+        }
+    }
+}
+
+async fn create_config(config_file_name: String) -> Result<()> {
+    let (action, config_file_name) = config_file_action(config_file_name)?;
+    match action {
+        ConfigAction::Create => {
+            return do_create_config(config_file_name).await;
+        }
+        ConfigAction::Append => {
+            return do_append_config(config_file_name).await;
+        }
+    }
+}
+
+async fn do_append_config(config_file_name: String) -> Result<()> {
+    match Configuration::load(&config_file_name) {
+        Ok(mut config) => {
+            source_destination_loop(&mut config, config_file_name)?;
+        }
+        Err(_error) => {
+            panic!("error loading config file");
+        }
+    }
+    Ok(())
+}
+
+async fn do_create_config(config_file_name: String) -> Result<()> {
+    let mut config = Configuration::new();
     let client_name = Text::new("Client Name:")
         .with_default("My Client")
         .with_validator(required!("This field is required"))
@@ -603,14 +602,9 @@ async fn create_config() -> Result<()> {
 
     let id = Uuid::new_v4().to_string();
 
-    node_table.insert("display_name".into(), Value::String(client_name));
-    node_table.insert(
-        "unique_id".into(),
-        Value::String(format!("{}-{}", client_id, id)),
-    );
-    node_table.insert("storage_path".into(), Value::String("client.db".into()));
+    let unique_id = format!("{}-{}", client_id, id);
 
-    tables.insert("node".into(), Value::Table(node_table));
+    config.set_node(client_name, unique_id, "client.db".to_string());
 
     let server = Text::new("Server:")
         .with_default("http://localhost:7777")
@@ -622,13 +616,14 @@ async fn create_config() -> Result<()> {
         .with_validator(required!("This field is required"))
         .with_help_message("Token")
         .prompt()?;
-    let mut server_table = Map::new();
-    server_table.insert("endpoint".into(), Value::String(server));
-    server_table.insert("token".into(), Value::String(token));
-    tables.insert("server".into(), Value::Table(server_table));
 
-    let mut sources: Vec<Value> = Vec::new();
-    let mut destinations: Vec<Value> = Vec::new();
+    config.set_server(server, token);
+
+    source_destination_loop(&mut config, config_file_name)?;
+    Ok(())
+}
+
+fn source_destination_loop(config: &mut Configuration, config_file_name: String) -> Result<()> {
     loop {
         const ADD_SOURCE: &str = "Add Source";
         const ADD_DESTINATION: &str = "Add Destination";
@@ -636,16 +631,7 @@ async fn create_config() -> Result<()> {
         let options = vec![ADD_SOURCE, ADD_DESTINATION, EXIT];
         let answer = Select::new("What would you like to do?", options).prompt()?;
         if answer == EXIT {
-            if sources.len() > 0 {
-                tables.insert("sources".into(), Value::Array(sources));
-            }
-            if destinations.len() > 0 {
-                tables.insert("destinations".into(), Value::Array(destinations));
-            }
-            let toml_string =
-                toml::to_string(&Value::Table(tables)).expect("Could not encode TOML value");
-            let result = fs::write("config.toml", toml_string);
-            match result {
+            match config.save(config_file_name) {
                 Ok(_) => {
                     println!("{}", "config.toml created!".green());
                     println!("{}", "Run `mycelial start` to start Mycelial".green());
@@ -663,10 +649,10 @@ async fn create_config() -> Result<()> {
                 Select::new("What type of source would you like to add?", options).prompt()?;
             match source {
                 MYCELITE_SOURCE => {
-                    prompt_mycelite_source(&mut sources)?;
+                    prompt_mycelite_source(config)?;
                 }
                 SQLITE_SOURCE => {
-                    prompt_sqlite_source(&mut sources)?;
+                    prompt_sqlite_source(config)?;
                 }
                 _ => {
                     panic!("Unknown source type");
@@ -689,19 +675,19 @@ async fn create_config() -> Result<()> {
                 Select::new("What type of destination would you like to add?", options).prompt()?;
             match destination {
                 MYCELITE_DESTINATION => {
-                    prompt_mycelite_destination(&mut destinations)?;
+                    prompt_mycelite_destination(config)?;
                 }
                 SQLITE_DESTINATION => {
-                    prompt_sqlite_destination(&mut destinations)?;
+                    prompt_sqlite_destination(config)?;
                 }
                 POSTGRES_DESTINATION => {
-                    prompt_postgres_destination(&mut destinations)?;
+                    prompt_postgres_destination(config)?;
                 }
                 MYSQL_DESTINATION => {
-                    prompt_mysql_destination(&mut destinations)?;
+                    prompt_mysql_destination(config)?;
                 }
                 KAFKA_DESTINATION => {
-                    prompt_kafka_destination(&mut destinations)?;
+                    prompt_kafka_destination(config)?;
                 }
                 _ => {
                     panic!("Unknown destination type");
