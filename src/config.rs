@@ -59,10 +59,10 @@ impl Config {
         self.destinations
             .push(Destination::mysql_connector { display_name, url });
     }
-    pub fn add_kafka_destination(&mut self, display_name: String, broker: String, topic: String) {
+    pub fn add_kafka_destination(&mut self, display_name: String, brokers: String, topic: String) {
         self.destinations.push(Destination::kafka {
             display_name,
-            broker,
+            brokers,
             topic,
         });
     }
@@ -155,7 +155,7 @@ enum Destination {
     },
     kafka {
         display_name: String,
-        broker: String,
+        brokers: String,
         topic: String,
     },
 }

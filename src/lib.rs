@@ -301,7 +301,10 @@ async fn start_server() -> Result<()> {
 }
 
 async fn start_client(config_file_name: String) -> Result<()> {
-    println!("Starting myceliald (client)...");
+    println!(
+        "Starting myceliald (client) with config file {}...",
+        config_file_name
+    );
     let myceliald_log_file = File::create("myceliald.log")?;
     let client_process = match std::process::Command::new("./myceliald")
         .arg("--config")
