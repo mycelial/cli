@@ -159,15 +159,3 @@ enum Destination {
         topic: String,
     },
 }
-
-// fn read_toml_file(path: String) -> Result<Config, Box<dyn std::error::Error>> {
-//     let contents = fs::read_to_string(path)?;
-//     let config: Config = toml::from_str(&contents)?;
-//     Ok(config)
-// }
-
-// fn write_toml_file(config: &Config, path: String) -> Result<(), Box<dyn std::error::Error>> {
-//     let toml = toml::to_string(&config)?;
-//     fs::write(path, toml)?;
-//     Ok(())
-// }
