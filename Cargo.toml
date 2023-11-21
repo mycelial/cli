@@ -11,7 +11,6 @@ reqwest = { version = "0.11", features = ["stream"] }
 flate2 = "1.0.28"
 tokio = { version = "1", features = ["full"] }
 tar = { package = "binstall-tar", version = "0.4.39" }
-inquire = "0.6.2"
 toml = "0.8.2"
 dirs = "5.0"
 nix = { version = "0.27.1", features = ["signal"] }
@@ -20,3 +19,4 @@ indicatif = "0.17.7"
 futures-util = "0.3.14"
 uuid = { version = "1.5.0", features = ["v4"] }
 serde = { version = "1.0.192", features = ["derive"] }
+dialoguer = { version = "0.11.0", features = ["fuzzy-select"] }
