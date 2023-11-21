@@ -48,7 +48,7 @@ pub async fn start(client: bool, server: bool, config_file_name: String) -> Resu
         println!("{}", "Server started on `http://localhost:7777`".green());
     }
     if client {
-        if !can_start_client() {
+        if !can_start_client(&config_file_name) {
             println!(
                 "{}",
                 "Missing myceliald binary. You must run `mycelial --local init` before `mycelial start`".red()
@@ -626,30 +626,47 @@ async fn do_create_config(config_file_name: String) -> Result<()> {
     Ok(())
 }
 
-fn source_destination_loop(config: &mut Configuration, config_file_name: String) -> Result<()> {
-    loop {
-        const ADD_SOURCE: &str = "Add Source";
-        const ADD_DESTINATION: &str = "Add Destination";
-        const EXIT: &str = "Exit";
-        let options = vec![ADD_SOURCE, ADD_DESTINATION, EXIT];
-        let answer = Select::new("What would you like to do?", options).prompt()?;
-        if answer == EXIT {
-            match config.save(config_file_name) {
-                Ok(_) => {
-                    println!("{}", "config.toml created!".green());
-                    println!("{}", "Run `mycelial start` to start Mycelial".green());
+fn source_prompts(config: &mut Configuration, config_file_name: Option<String>) -> Result<()> {
+    const MYCELITE_SOURCE: &str = "Full SQLite replication source";
+    const SQLITE_SOURCE: &str = "Append only SQLite source";
+    const EXIT: &str = "Exit";
+    const PROMPT: &str = "What type of source would you like to add?";
+    match config_file_name {
+        Some(config_file_name) => {
+            let options = vec![MYCELITE_SOURCE, SQLITE_SOURCE, EXIT];
+            let source = Select::new(PROMPT, options).prompt()?;
+            match source {
+                MYCELITE_SOURCE => {
+                    prompt_mycelite_source(config)?;
                 }
-                Err(_error) => {
-                    return Err("error creating config.toml".into());
+                SQLITE_SOURCE => {
+                    prompt_sqlite_source(config)?;
+                }
+                EXIT => {
+                    match config.save(&config_file_name) {
+                        Ok(_) => {
+                            println!("{}", format!("{} updated!", config_file_name).green());
+                            println!("{}", "Run `mycelial start` to start Mycelial".green());
+                        }
+                        Err(_error) => {
+                            return Err(format!(
+                                "error creating config file `{}`",
+                                config_file_name
+                            )
+                            .into());
+                        }
+                    }
+                    return Ok(());
+                }
+                _ => {
+                    panic!("Unknown source type");
                 }
             }
-            break;
-        } else if answer == ADD_SOURCE {
-            const MYCELITE_SOURCE: &str = "Full SQLite replication source";
-            const SQLITE_SOURCE: &str = "Append only SQLite source";
+            source_prompts(config, Some(config_file_name))?;
+        }
+        None => {
             let options = vec![MYCELITE_SOURCE, SQLITE_SOURCE];
-            let source =
-                Select::new("What type of source would you like to add?", options).prompt()?;
+            let source = Select::new(PROMPT, options).prompt()?;
             match source {
                 MYCELITE_SOURCE => {
                     prompt_mycelite_source(config)?;
@@ -661,12 +678,69 @@ fn source_destination_loop(config: &mut Configuration, config_file_name: String)
                     panic!("Unknown source type");
                 }
             }
-        } else if answer == ADD_DESTINATION {
-            const MYCELITE_DESTINATION: &str = "Full SQLite replication destination";
-            const SQLITE_DESTINATION: &str = "Append only SQLite destination";
-            const POSTGRES_DESTINATION: &str = "Append only Postgres destination";
-            const MYSQL_DESTINATION: &str = "Append only MySQL destination";
-            const KAFKA_DESTINATION: &str = "Kafka destination";
+        }
+    }
+    Ok(())
+}
+
+fn destination_prompts(config: &mut Configuration, config_file_name: Option<String>) -> Result<()> {
+    const MYCELITE_DESTINATION: &str = "Full SQLite replication destination";
+    const SQLITE_DESTINATION: &str = "Append only SQLite destination";
+    const POSTGRES_DESTINATION: &str = "Append only Postgres destination";
+    const MYSQL_DESTINATION: &str = "Append only MySQL destination";
+    const KAFKA_DESTINATION: &str = "Kafka destination";
+    const EXIT: &str = "Exit";
+    const PROMPT: &str = "What type of destination would you like to add?";
+    match config_file_name {
+        Some(config_file_name) => {
+            let options = vec![
+                MYCELITE_DESTINATION,
+                SQLITE_DESTINATION,
+                POSTGRES_DESTINATION,
+                MYSQL_DESTINATION,
+                KAFKA_DESTINATION,
+                EXIT,
+            ];
+            let destination = Select::new(PROMPT, options).prompt()?;
+            match destination {
+                MYCELITE_DESTINATION => {
+                    prompt_mycelite_destination(config)?;
+                }
+                SQLITE_DESTINATION => {
+                    prompt_sqlite_destination(config)?;
+                }
+                POSTGRES_DESTINATION => {
+                    prompt_postgres_destination(config)?;
+                }
+                MYSQL_DESTINATION => {
+                    prompt_mysql_destination(config)?;
+                }
+                KAFKA_DESTINATION => {
+                    prompt_kafka_destination(config)?;
+                }
+                EXIT => {
+                    match config.save(&config_file_name) {
+                        Ok(_) => {
+                            println!("{}", "config file updated!".green());
+                            println!("{}", "Run `mycelial start` to start Mycelial".green());
+                        }
+                        Err(_error) => {
+                            return Err(format!(
+                                "error creating config file `{}`",
+                                config_file_name
+                            )
+                            .into());
+                        }
+                    }
+                    return Ok(());
+                }
+                _ => {
+                    panic!("Unknown destination type");
+                }
+            }
+            destination_prompts(config, Some(config_file_name))?;
+        }
+        None => {
             let options = vec![
                 MYCELITE_DESTINATION,
                 SQLITE_DESTINATION,
@@ -674,8 +748,7 @@ fn source_destination_loop(config: &mut Configuration, config_file_name: String)
                 MYSQL_DESTINATION,
                 KAFKA_DESTINATION,
             ];
-            let destination =
-                Select::new("What type of destination would you like to add?", options).prompt()?;
+            let destination = Select::new(PROMPT, options).prompt()?;
             match destination {
                 MYCELITE_DESTINATION => {
                     prompt_mycelite_destination(config)?;
@@ -701,9 +774,70 @@ fn source_destination_loop(config: &mut Configuration, config_file_name: String)
     Ok(())
 }
 
-fn can_start_client() -> bool {
+pub async fn add_source(config_file_name: &str) -> Result<()> {
+    let config_file_name_path = Path::new(config_file_name);
+    if config_file_name_path.exists() {
+        match Configuration::load(&config_file_name) {
+            Ok(mut config) => {
+                source_prompts(&mut config, Some(config_file_name.to_string()))?;
+            }
+            Err(_error) => {
+                panic!("error loading config file");
+            }
+        }
+    } else {
+        create_config(config_file_name.to_string()).await?;
+    }
+    Ok(())
+}
+
+pub async fn add_destination(config_file_name: &str) -> Result<()> {
+    let config_file_name_path = Path::new(config_file_name);
+    if config_file_name_path.exists() {
+        match Configuration::load(&config_file_name) {
+            Ok(mut config) => {
+                destination_prompts(&mut config, Some(config_file_name.to_string()))?;
+            }
+            Err(_error) => {
+                panic!("error loading config file");
+            }
+        }
+    } else {
+        create_config(config_file_name.to_string()).await?;
+    }
+    Ok(())
+}
+
+fn source_destination_loop(config: &mut Configuration, config_file_name: String) -> Result<()> {
+    loop {
+        const ADD_SOURCE: &str = "Add Source";
+        const ADD_DESTINATION: &str = "Add Destination";
+        const EXIT: &str = "Exit";
+        let options = vec![ADD_SOURCE, ADD_DESTINATION, EXIT];
+        let answer = Select::new("What would you like to do?", options).prompt()?;
+        if answer == EXIT {
+            match config.save(&config_file_name) {
+                Ok(_) => {
+                    println!("{}", format!("{} updated!", config_file_name).green());
+                    println!("{}", "Run `mycelial start` to start Mycelial".green());
+                }
+                Err(_error) => {
+                    return Err("error creating config file".into());
+                }
+            }
+            break;
+        } else if answer == ADD_SOURCE {
+            source_prompts(config, None)?;
+        } else if answer == ADD_DESTINATION {
+            destination_prompts(config, None)?;
+        }
+    }
+    Ok(())
+}
+
+fn can_start_client(config_file_name: &str) -> bool {
     let myceliald_path = Path::new("myceliald");
-    let config_path = Path::new("config.toml");
+    let config_path = Path::new(config_file_name);
     myceliald_path.exists() && config_path.exists()
 }
 

@@ -1,5 +1,5 @@
 use clap::{Parser, Subcommand};
-use mycelial::{destroy, init, reset, start};
+use mycelial::{add_destination, add_source, destroy, init, reset, start};
 
 #[derive(Debug, Parser)]
 #[command(name = "mycelial")]
@@ -55,6 +55,18 @@ enum Commands {
         /// delete the server database
         #[arg(short, long)]
         server: bool,
+        /// specify a config file name to use
+        #[arg(long)]
+        config: Option<String>,
+    },
+    /// add a source or destination to config
+    Add {
+        /// add a source to config
+        #[arg(short, long)]
+        source: bool,
+        #[arg(short, long)]
+        /// add a destination to config
+        destination: bool,
         /// specify a config file name to use
         #[arg(long)]
         config: Option<String>,
@@ -139,6 +151,27 @@ async fn run(args: Cli) -> Result<(), Box<dyn std::error::Error + Send + Sync>> 
                 if server {
                     reset(false, true, &config_file_name).await?;
                 }
+            }
+        }
+        Commands::Add {
+            source,
+            destination,
+            config,
+        } => {
+            let config_file_name = match config {
+                Some(config) => config,
+                None => "config.toml".to_string(),
+            };
+            if !source && !destination {
+                return Err(
+                    "add command must be run with the --source and/or --destination options".into(),
+                );
+            }
+            if source {
+                add_source(&config_file_name).await?;
+            }
+            if destination {
+                add_destination(&config_file_name).await?;
             }
         }
     }
