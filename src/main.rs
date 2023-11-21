@@ -22,6 +22,9 @@ enum Commands {
         /// download the server
         #[arg(short, long)]
         server: bool,
+        /// specify a config file name to use
+        #[arg(long)]
+        config: Option<String>,
     },
     /// starts the server and myceliald (client)
     Start {
@@ -31,6 +34,9 @@ enum Commands {
         /// start the server
         #[arg(short, long)]
         server: bool,
+        /// specify a config file name to use
+        #[arg(long)]
+        config: Option<String>,
     },
     /// stops the server and myceliald (client)
     Destroy {
@@ -49,6 +55,9 @@ enum Commands {
         /// delete the server database
         #[arg(short, long)]
         server: bool,
+        /// specify a config file name to use
+        #[arg(long)]
+        config: Option<String>,
     },
 }
 
@@ -70,11 +79,16 @@ async fn run(args: Cli) -> Result<(), Box<dyn std::error::Error + Send + Sync>> 
             local,
             client,
             server,
+            config,
         } => {
+            let config_file_name = match config {
+                Some(config) => config,
+                None => "config.toml".to_string(),
+            };
             if local {
-                init(true, true).await?;
+                init(true, true, config_file_name).await?;
             } else if client || server {
-                init(client, server).await?;
+                init(client, server, config_file_name).await?;
             } else {
                 return Err(
                     "init command must be run with the --local, --client and/or --server options"
@@ -82,12 +96,20 @@ async fn run(args: Cli) -> Result<(), Box<dyn std::error::Error + Send + Sync>> 
                 );
             }
         }
-        Commands::Start { client, server } => {
+        Commands::Start {
+            client,
+            server,
+            config,
+        } => {
+            let config_file_name = match config {
+                Some(config) => config,
+                None => "config.toml".to_string(),
+            };
             // if neither client or server are specified, start both
             if !client && !server {
-                start(true, true).await?;
+                start(true, true, config_file_name).await?;
             } else {
-                start(client, server).await?;
+                start(client, server, config_file_name).await?;
             }
         }
         Commands::Destroy { client, server } => {
@@ -98,16 +120,24 @@ async fn run(args: Cli) -> Result<(), Box<dyn std::error::Error + Send + Sync>> 
                 destroy(client, server).await?;
             }
         }
-        Commands::Reset { client, server } => {
+        Commands::Reset {
+            client,
+            server,
+            config,
+        } => {
+            let config_file_name = match config {
+                Some(config) => config,
+                None => "config.toml".to_string(),
+            };
             // if neither client or server are specified, destroy both
             if !client && !server {
-                reset(true, true).await?;
+                reset(true, true, &config_file_name).await?;
             } else {
                 if client {
-                    reset(true, false).await?;
+                    reset(true, false, &config_file_name).await?;
                 }
                 if server {
-                    reset(false, true).await?;
+                    reset(false, true, &config_file_name).await?;
                 }
             }
         }
