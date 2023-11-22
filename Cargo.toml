@@ -20,3 +20,10 @@ futures-util = "0.3.14"
 uuid = { version = "1.5.0", features = ["v4"] }
 serde = { version = "1.0.192", features = ["derive"] }
 dialoguer = { version = "0.11.0", features = ["fuzzy-select"] }
+
+[dev-dependencies]
+assert_cmd = "2.0.12"
+assert_fs = "1.0.13"
+predicates = "3.0.4"
+[target.'cfg(not(windows))'.dev-dependencies]
+rexpect = "0.5.0"
