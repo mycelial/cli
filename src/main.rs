@@ -102,10 +102,11 @@ async fn run(args: Cli) -> Result<(), Box<dyn std::error::Error + Send + Sync>> 
             } else if client || server {
                 init(client, server, config_file_name).await?;
             } else {
-                return Err(
-                    "init command must be run with the --local, --client and/or --server options"
-                        .into(),
-                );
+                init(false, false, config_file_name).await?;
+                // return Err(
+                //     "init command must be run with the --local, --client and/or --server options"
+                //         .into(),
+                // );
             }
         }
         Commands::Start {

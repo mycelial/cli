@@ -13,8 +13,7 @@ use uuid::Uuid;
 extern crate dirs;
 mod config;
 use config::Config as Configuration;
-
-use inquire::{required, Confirm, Password, Select, Text};
+use dialoguer::{theme::ColorfulTheme, Confirm, FuzzySelect, Input, Password};
 
 type Result<T> = std::result::Result<T, Box<dyn std::error::Error + Send + Sync>>;
 
@@ -51,7 +50,7 @@ pub async fn start(client: bool, server: bool, config_file_name: String) -> Resu
         if !can_start_client(&config_file_name) {
             println!(
                 "{}",
-                "Missing myceliald binary. You must run `mycelial --local init` before `mycelial start`".red()
+                "Missing myceliald binary or config file. You must run `mycelial --local init` before `mycelial start`".red()
             );
             return Ok(());
         }
@@ -113,10 +112,10 @@ fn storage_path(config_file_name: &str) -> Option<String> {
 }
 
 pub async fn reset(client: bool, server: bool, config_file_name: &str) -> Result<()> {
-    let answer = Confirm::new("Are you sure you want to reset Mycelial?")
-        .with_default(false)
-        .with_help_message("This deletes all local state (sqlite databases)")
-        .prompt()?;
+    let answer: bool = Confirm::with_theme(&ColorfulTheme::default())
+        .with_prompt("Are you sure you want to reset Mycelial?")
+        .interact()
+        .unwrap();
     if answer {
         let client_db_path = storage_path(config_file_name).unwrap();
         if client {
@@ -278,10 +277,10 @@ async fn download_binaries(client: bool, server: bool) -> Result<()> {
 async fn start_server() -> Result<()> {
     println!("Starting Mycelial Server...");
     let server_log_file = File::create("server.log")?;
-    let token = Password::new("Enter Security Token:")
-        .with_validator(required!("This field is required"))
-        .with_help_message("Token")
-        .prompt()?;
+    let token = Password::with_theme(&ColorfulTheme::default())
+        .with_prompt("Security Token:")
+        .interact()
+        .unwrap();
 
     let server_process = match std::process::Command::new("./server")
         .arg("--token")
@@ -352,16 +351,18 @@ pub async fn download_and_unarchive(url: &str, file_name: &str) -> Result<()> {
 
 fn prompt_sqlite_source(config: &mut Configuration) -> Result<()> {
     let cwd = current_dir()?.into_os_string().into_string().unwrap();
-    let display_name = Text::new("Display name:")
-        .with_default("SQLite Append Only Source")
-        .with_validator(required!("This field is required"))
-        .with_help_message("Display Name")
-        .prompt()?;
-    let path = Text::new("Database Path:")
-        .with_default("data.db")
-        .with_validator(required!("This field is required"))
-        .with_help_message("Database path")
-        .prompt()?;
+    let display_name: String = Input::with_theme(&ColorfulTheme::default())
+        .with_prompt("Display name:")
+        .default("SQLite Append Only Source".to_string())
+        .allow_empty(false)
+        .interact_text()
+        .unwrap();
+    let path: String = Input::with_theme(&ColorfulTheme::default())
+        .with_prompt("Database Path:")
+        .default("data.db".to_string())
+        .allow_empty(false)
+        .interact_text()
+        .unwrap();
     let database_path = format!("{}/{}", cwd, path);
     config.add_sqlite_connector_source(display_name, database_path);
     Ok(())
@@ -369,16 +370,18 @@ fn prompt_sqlite_source(config: &mut Configuration) -> Result<()> {
 
 fn prompt_mycelite_source(config: &mut Configuration) -> Result<()> {
     let cwd = current_dir()?.into_os_string().into_string().unwrap();
-    let display_name = Text::new("Display name:")
-        .with_default("Example Source")
-        .with_validator(required!("This field is required"))
-        .with_help_message("Display Name")
-        .prompt()?;
-    let path = Text::new("Journal Path:")
-        .with_default("data.db-mycelial")
-        .with_validator(required!("This field is required"))
-        .with_help_message("Journal path")
-        .prompt()?;
+    let display_name: String = Input::with_theme(&ColorfulTheme::default())
+        .with_prompt("Display name:")
+        .default("Example Source".to_string())
+        .allow_empty(false)
+        .interact_text()
+        .unwrap();
+    let path: String = Input::with_theme(&ColorfulTheme::default())
+        .with_prompt("Journal Path:")
+        .default("data.db-mycelial".to_string())
+        .allow_empty(false)
+        .interact_text()
+        .unwrap();
     let journal_path = format!("{}/{}", cwd, path);
     config.add_sqlite_physical_replication_source(display_name, journal_path);
     Ok(())
@@ -386,21 +389,24 @@ fn prompt_mycelite_source(config: &mut Configuration) -> Result<()> {
 
 fn prompt_mycelite_destination(config: &mut Configuration) -> Result<()> {
     let cwd = current_dir()?.into_os_string().into_string().unwrap();
-    let display_name = Text::new("Display name:")
-        .with_default("Example Destination")
-        .with_validator(required!("This field is required"))
-        .with_help_message("Display Name")
-        .prompt()?;
-    let path = Text::new("Journal Path:")
-        .with_default("destination-sqlite-mycelial")
-        .with_validator(required!("This field is required"))
-        .with_help_message("Journal path")
-        .prompt()?;
-    let database_path = Text::new("Database Path:")
-        .with_default("destination-sqlite.data")
-        .with_validator(required!("This field is required"))
-        .with_help_message("Database path and filename")
-        .prompt()?;
+    let display_name: String = Input::with_theme(&ColorfulTheme::default())
+        .with_prompt("Display name:")
+        .default("Example Destination".to_string())
+        .allow_empty(false)
+        .interact_text()
+        .unwrap();
+    let path: String = Input::with_theme(&ColorfulTheme::default())
+        .with_prompt("Journal Path:")
+        .default("destination-sqlite-mycelial".to_string())
+        .allow_empty(false)
+        .interact_text()
+        .unwrap();
+    let database_path: String = Input::with_theme(&ColorfulTheme::default())
+        .with_prompt("Database Path:")
+        .default("destination-sqlite.data".to_string())
+        .allow_empty(false)
+        .interact_text()
+        .unwrap();
     let journal_path = format!("{}/{}", cwd, path);
     config.add_sqlite_physical_replication_destination(display_name, journal_path, database_path);
     Ok(())
@@ -408,51 +414,60 @@ fn prompt_mycelite_destination(config: &mut Configuration) -> Result<()> {
 
 fn prompt_sqlite_destination(config: &mut Configuration) -> Result<()> {
     let cwd = current_dir()?.into_os_string().into_string().unwrap();
-    let name = Text::new("Display name:")
-        .with_default("SQLite Append Only Destination")
-        .with_validator(required!("This field is required"))
-        .with_help_message("Display Name")
-        .prompt()?;
-    let path = Text::new("Database Path:")
-        .with_default("destination.db")
-        .with_validator(required!("This field is required"))
-        .with_help_message("Database path")
-        .prompt()?;
+    let display_name: String = Input::with_theme(&ColorfulTheme::default())
+        .with_prompt("Display name:")
+        .default("SQLite Append Only Destination".to_string())
+        .allow_empty(false)
+        .interact_text()
+        .unwrap();
+    let path: String = Input::with_theme(&ColorfulTheme::default())
+        .with_prompt("Database Path:")
+        .default("destination.db".to_string())
+        .allow_empty(false)
+        .interact_text()
+        .unwrap();
     let database_path = format!("{}/{}", cwd, path);
-    config.add_sqlite_connector_destination(name, database_path);
+    config.add_sqlite_connector_destination(display_name, database_path);
     Ok(())
 }
 
 fn prompt_postgres_destination(config: &mut Configuration) -> Result<()> {
-    let display_name = Text::new("Display name:")
-        .with_default("Postgres Append Only Destination")
-        .with_validator(required!("This field is required"))
-        .with_help_message("Display Name")
-        .prompt()?;
-    let user = Text::new("Postgres username:")
-        .with_default("user")
-        .with_validator(required!("This field is required"))
-        .with_help_message("Postgres Username")
-        .prompt()?;
-    let password = Password::new("Postgres password:")
-        .with_validator(required!("This field is required"))
-        .with_help_message("Password")
-        .prompt()?;
-    let address = Text::new("Server address:")
-        .with_default("127.0.0.1")
-        .with_validator(required!("This field is required"))
-        .with_help_message("Server address")
-        .prompt()?;
-    let port = Text::new("Postgres port:")
-        .with_default("5432")
-        .with_validator(required!("This field is required"))
-        .with_help_message("Postgres port")
-        .prompt()?;
-    let database = Text::new("Database name:")
-        .with_default("db")
-        .with_validator(required!("This field is required"))
-        .with_help_message("Database name")
-        .prompt()?;
+    let display_name: String = Input::with_theme(&ColorfulTheme::default())
+        .with_prompt("Display name:")
+        .default("Postgres Append Only Destination".to_string())
+        .allow_empty(false)
+        .interact_text()
+        .unwrap();
+    let user: String = Input::with_theme(&ColorfulTheme::default())
+        .with_prompt("Postgres username:")
+        .default("user".to_string())
+        .allow_empty(false)
+        .interact_text()
+        .unwrap();
+    let password = Password::with_theme(&ColorfulTheme::default())
+        .with_prompt("Postgres password:")
+        .interact()
+        .unwrap();
+
+    let address: String = Input::with_theme(&ColorfulTheme::default())
+        .with_prompt("Server address:")
+        .default("127.0.0.1".to_string())
+        .allow_empty(false)
+        .interact_text()
+        .unwrap();
+    let port: String = Input::with_theme(&ColorfulTheme::default())
+        .with_prompt("Postgres port:")
+        .default("5432".to_string())
+        .allow_empty(false)
+        .interact_text()
+        .unwrap();
+
+    let database: String = Input::with_theme(&ColorfulTheme::default())
+        .with_prompt("Database name:")
+        .default("db".to_string())
+        .allow_empty(false)
+        .interact_text()
+        .unwrap();
     let postgres_url = format!(
         "postgres://{}:{}@{}:{}/{}",
         user, password, address, port, database
@@ -463,60 +478,68 @@ fn prompt_postgres_destination(config: &mut Configuration) -> Result<()> {
 }
 
 fn prompt_kafka_destination(config: &mut Configuration) -> Result<()> {
-    let name = Text::new("Display name:")
-        .with_default("Kafka Destination")
-        .with_validator(required!("This field is required"))
-        .with_help_message("Display Name")
-        .prompt()?;
-    let broker = Text::new("Broker:")
-        .with_default("localhost:9092")
-        .with_validator(required!("This field is required"))
-        .with_help_message("Broker")
-        .prompt()?;
-    let topic = Text::new("Topic:")
-        .with_default("test")
-        .with_validator(required!("This field is required"))
-        .with_help_message("Topic")
-        .prompt()?;
-    config.add_kafka_destination(name, broker, topic);
+    let display_name: String = Input::with_theme(&ColorfulTheme::default())
+        .with_prompt("Display name:")
+        .default("Kafka Destination".to_string())
+        .allow_empty(false)
+        .interact_text()
+        .unwrap();
+    let brokers: String = Input::with_theme(&ColorfulTheme::default())
+        .with_prompt("Broker:")
+        .default("localhost:9092".to_string())
+        .allow_empty(false)
+        .interact_text()
+        .unwrap();
+    let topic: String = Input::with_theme(&ColorfulTheme::default())
+        .with_prompt("Topic:")
+        .default("test".to_string())
+        .allow_empty(false)
+        .interact_text()
+        .unwrap();
+    config.add_kafka_destination(display_name, brokers, topic);
     Ok(())
 }
 
 fn prompt_mysql_destination(config: &mut Configuration) -> Result<()> {
-    let name = Text::new("Display name:")
-        .with_default("Mysql Append Only Destination")
-        .with_validator(required!("This field is required"))
-        .with_help_message("Display Name")
-        .prompt()?;
-    let user = Text::new("Mysql username:")
-        .with_default("user")
-        .with_validator(required!("This field is required"))
-        .with_help_message("Postgres Username")
-        .prompt()?;
-    let password = Password::new("mysql password:")
-        .with_validator(required!("This field is required"))
-        .with_help_message("Password")
-        .prompt()?;
-    let address = Text::new("Server address:")
-        .with_default("127.0.0.1")
-        .with_validator(required!("This field is required"))
-        .with_help_message("Server address")
-        .prompt()?;
-    let port = Text::new("Mysql port:")
-        .with_default("3306")
-        .with_validator(required!("This field is required"))
-        .with_help_message("Mysql port")
-        .prompt()?;
-    let database = Text::new("Database name:")
-        .with_default("db")
-        .with_validator(required!("This field is required"))
-        .with_help_message("Database name")
-        .prompt()?;
+    let display_name: String = Input::with_theme(&ColorfulTheme::default())
+        .with_prompt("Display name:")
+        .default("Mysql Append Only Destination".to_string())
+        .allow_empty(false)
+        .interact_text()
+        .unwrap();
+    let user: String = Input::with_theme(&ColorfulTheme::default())
+        .with_prompt("Mysql username:")
+        .default("user".to_string())
+        .allow_empty(false)
+        .interact_text()
+        .unwrap();
+    let password = Password::with_theme(&ColorfulTheme::default())
+        .with_prompt("Mysql password:")
+        .interact()
+        .unwrap();
+    let address: String = Input::with_theme(&ColorfulTheme::default())
+        .with_prompt("Server address:")
+        .default("127.0.0.1".to_string())
+        .allow_empty(false)
+        .interact_text()
+        .unwrap();
+    let port: String = Input::with_theme(&ColorfulTheme::default())
+        .with_prompt("Mysql port:")
+        .default("3306".to_string())
+        .allow_empty(false)
+        .interact_text()
+        .unwrap();
+    let database: String = Input::with_theme(&ColorfulTheme::default())
+        .with_prompt("Database name:")
+        .default("db".to_string())
+        .allow_empty(false)
+        .interact_text()
+        .unwrap();
     let postgres_url = format!(
         "mysql://{}:{}@{}:{}/{}",
         user, password, address, port, database
     );
-    config.add_mysql_connector_destination(name, postgres_url);
+    config.add_mysql_connector_destination(display_name, postgres_url);
     Ok(())
 }
 
@@ -534,27 +557,31 @@ fn config_file_action(config_file_name: String) -> Result<(ConfigAction, std::st
     if !config_path.exists() {
         return Ok((ConfigAction::Create, config_file_name));
     } else {
-        let answer = Select::new(
-            &format!(
+        let answer = FuzzySelect::with_theme(&ColorfulTheme::default())
+            .with_prompt(&format!(
                 "The config file `{}` already exists, what would you like to do?",
                 config_file_name
-            ),
-            options,
-        )
-        .prompt()?;
+            ))
+            .items(&options)
+            .interact()
+            .unwrap();
         match answer {
-            OVERWRITE => {
+            // OVERWRITE
+            0 => {
                 return Ok((ConfigAction::Create, config_file_name));
             }
-            APPEND => {
+            // APPEND
+            1 => {
                 return Ok((ConfigAction::Append, config_file_name));
             }
-            RENAME => {
-                let new_config_file_name = Text::new("New config file name:")
-                    .with_default("config.toml")
-                    .with_validator(required!("This field is required"))
-                    .with_help_message("New config file name")
-                    .prompt()?;
+            // RENAME
+            2 => {
+                let new_config_file_name: String = Input::with_theme(&ColorfulTheme::default())
+                    .with_prompt("New config file name:")
+                    .default("config.toml".to_string())
+                    .allow_empty(false)
+                    .interact_text()
+                    .unwrap();
                 let result = config_file_action(new_config_file_name)?;
                 return Ok(result);
             }
@@ -591,17 +618,19 @@ async fn do_append_config(config_file_name: String) -> Result<()> {
 
 async fn do_create_config(config_file_name: String) -> Result<()> {
     let mut config = Configuration::new();
-    let client_name = Text::new("Client Name:")
-        .with_default("My Client")
-        .with_validator(required!("This field is required"))
-        .with_help_message("Client display name")
-        .prompt()?;
+    let client_name: String = Input::with_theme(&ColorfulTheme::default())
+        .with_prompt("Client Name:")
+        .default("My Client".to_string())
+        .allow_empty(false)
+        .interact_text()
+        .unwrap();
 
-    let client_id = Text::new("Client ID:")
-        .with_default("client")
-        .with_validator(required!("This field is required"))
-        .with_help_message("Client ID")
-        .prompt()?;
+    let client_id: String = Input::with_theme(&ColorfulTheme::default())
+        .with_prompt("Client ID:")
+        .default("client".to_string())
+        .allow_empty(false)
+        .interact_text()
+        .unwrap();
 
     let id = Uuid::new_v4().to_string();
 
@@ -609,16 +638,17 @@ async fn do_create_config(config_file_name: String) -> Result<()> {
 
     config.set_node(client_name, unique_id, "client.db".to_string());
 
-    let server = Text::new("Server:")
-        .with_default("http://localhost:7777")
-        .with_validator(required!("This field is required"))
-        .with_help_message("Server address")
-        .prompt()?;
+    let server: String = Input::with_theme(&ColorfulTheme::default())
+        .with_prompt("Server:")
+        .default("http://localhost:7777".to_string())
+        .allow_empty(false)
+        .interact_text()
+        .unwrap();
 
-    let token = Password::new("Security Token:")
-        .with_validator(required!("This field is required"))
-        .with_help_message("Token")
-        .prompt()?;
+    let token = Password::with_theme(&ColorfulTheme::default())
+        .with_prompt("Security Token:")
+        .interact()
+        .unwrap();
 
     config.set_server(server, token);
 
@@ -634,15 +664,22 @@ fn source_prompts(config: &mut Configuration, config_file_name: Option<String>) 
     match config_file_name {
         Some(config_file_name) => {
             let options = vec![MYCELITE_SOURCE, SQLITE_SOURCE, EXIT];
-            let source = Select::new(PROMPT, options).prompt()?;
+            let source = FuzzySelect::with_theme(&ColorfulTheme::default())
+                .with_prompt(PROMPT)
+                .items(&options)
+                .interact()
+                .unwrap();
             match source {
-                MYCELITE_SOURCE => {
+                // MYCELITE_SOURCE
+                0 => {
                     prompt_mycelite_source(config)?;
                 }
-                SQLITE_SOURCE => {
+                // SQLITE_SOURCE
+                1 => {
                     prompt_sqlite_source(config)?;
                 }
-                EXIT => {
+                // EXIT
+                2 => {
                     match config.save(&config_file_name) {
                         Ok(_) => {
                             println!("{}", format!("{} updated!", config_file_name).green());
@@ -666,12 +703,18 @@ fn source_prompts(config: &mut Configuration, config_file_name: Option<String>) 
         }
         None => {
             let options = vec![MYCELITE_SOURCE, SQLITE_SOURCE];
-            let source = Select::new(PROMPT, options).prompt()?;
+            let source = FuzzySelect::with_theme(&ColorfulTheme::default())
+                .with_prompt(PROMPT)
+                .items(&options)
+                .interact()
+                .unwrap();
             match source {
-                MYCELITE_SOURCE => {
+                // MYCELITE_SOURCE
+                0 => {
                     prompt_mycelite_source(config)?;
                 }
-                SQLITE_SOURCE => {
+                // SQLITE_SOURCE
+                1 => {
                     prompt_sqlite_source(config)?;
                 }
                 _ => {
@@ -701,24 +744,34 @@ fn destination_prompts(config: &mut Configuration, config_file_name: Option<Stri
                 KAFKA_DESTINATION,
                 EXIT,
             ];
-            let destination = Select::new(PROMPT, options).prompt()?;
+            let destination = FuzzySelect::with_theme(&ColorfulTheme::default())
+                .with_prompt(PROMPT)
+                .items(&options)
+                .interact()
+                .unwrap();
             match destination {
-                MYCELITE_DESTINATION => {
+                // MYCELITE_DESTINATION
+                0 => {
                     prompt_mycelite_destination(config)?;
                 }
-                SQLITE_DESTINATION => {
+                // SQLITE_DESTINATION
+                1 => {
                     prompt_sqlite_destination(config)?;
                 }
-                POSTGRES_DESTINATION => {
+                // POSTGRES_DESTINATION
+                2 => {
                     prompt_postgres_destination(config)?;
                 }
-                MYSQL_DESTINATION => {
+                // MYSQL_DESTINATION
+                3 => {
                     prompt_mysql_destination(config)?;
                 }
-                KAFKA_DESTINATION => {
+                // KAFKA_DESTINATION
+                4 => {
                     prompt_kafka_destination(config)?;
                 }
-                EXIT => {
+                // EXIT
+                5 => {
                     match config.save(&config_file_name) {
                         Ok(_) => {
                             println!("{}", "config file updated!".green());
@@ -748,21 +801,30 @@ fn destination_prompts(config: &mut Configuration, config_file_name: Option<Stri
                 MYSQL_DESTINATION,
                 KAFKA_DESTINATION,
             ];
-            let destination = Select::new(PROMPT, options).prompt()?;
+            let destination = FuzzySelect::with_theme(&ColorfulTheme::default())
+                .with_prompt(PROMPT)
+                .items(&options)
+                .interact()
+                .unwrap();
             match destination {
-                MYCELITE_DESTINATION => {
+                // MYCELITE_DESTINATION
+                0 => {
                     prompt_mycelite_destination(config)?;
                 }
-                SQLITE_DESTINATION => {
+                // SQLITE_DESTINATION
+                1 => {
                     prompt_sqlite_destination(config)?;
                 }
-                POSTGRES_DESTINATION => {
+                // POSTGRES_DESTINATION
+                2 => {
                     prompt_postgres_destination(config)?;
                 }
-                MYSQL_DESTINATION => {
+                // MYSQL_DESTINATION
+                3 => {
                     prompt_mysql_destination(config)?;
                 }
-                KAFKA_DESTINATION => {
+                // KAFKA_DESTINATION
+                4 => {
                     prompt_kafka_destination(config)?;
                 }
                 _ => {
@@ -813,9 +875,15 @@ fn source_destination_loop(config: &mut Configuration, config_file_name: String)
         const ADD_SOURCE: &str = "Add Source";
         const ADD_DESTINATION: &str = "Add Destination";
         const EXIT: &str = "Exit";
+        const PROMPT: &str = "What would you like to do?";
         let options = vec![ADD_SOURCE, ADD_DESTINATION, EXIT];
-        let answer = Select::new("What would you like to do?", options).prompt()?;
-        if answer == EXIT {
+        let answer = FuzzySelect::with_theme(&ColorfulTheme::default())
+            .with_prompt(PROMPT)
+            .items(&options)
+            .interact()
+            .unwrap();
+        // EXIT
+        if answer == 2 {
             match config.save(&config_file_name) {
                 Ok(_) => {
                     println!("{}", format!("{} updated!", config_file_name).green());
@@ -826,9 +894,13 @@ fn source_destination_loop(config: &mut Configuration, config_file_name: String)
                 }
             }
             break;
-        } else if answer == ADD_SOURCE {
+        } else if answer == 0
+        /* ADD_SOURCE */
+        {
             source_prompts(config, None)?;
-        } else if answer == ADD_DESTINATION {
+        } else if answer == 1
+        /* ADD_DESTINATION */
+        {
             destination_prompts(config, None)?;
         }
     }
