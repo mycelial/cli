@@ -10,7 +10,8 @@ pub struct Service {}
 type Result<T> = std::result::Result<T, Box<dyn std::error::Error + Send + Sync>>;
 const CLIENT_DEST_PATH: &str = "/usr/local/bin/myceliald";
 const CLIENT_CONFIG_PATH: &str = "/etc/mycelial/config.toml";
-
+const CLIENT_DB_PATH: &str = "/var/lib/mycelial";
+const SERVICE_LABEL: &str = "com.mycelial.myceliald";
 impl Service {
     pub fn new() -> Service {
         Service {}
@@ -19,6 +20,10 @@ impl Service {
         self.download_client().await?;
         self.configure_client(config).await?;
         self.install_and_start()?;
+        Ok(())
+    }
+    pub async fn remove_client(&self) -> Result<()> {
+        self.uninstall_client()?;
         Ok(())
     }
     async fn download_client(&self) -> Result<()> {
@@ -31,11 +36,9 @@ impl Service {
         Ok(())
     }
     async fn configure_client(&self, config: Option<String>) -> Result<()> {
-        let database_storage_path = Some("/var/lib/mycelial".to_string());
-        let mycelial_dir_path = Path::new("/etc/mycelial");
-        if !mycelial_dir_path.exists() {
-            fs::create_dir(mycelial_dir_path)?;
-        }
+        fs::create_dir_all(CLIENT_DB_PATH)?;
+        fs::create_dir_all("/etc/mycelial")?;
+        let database_storage_path = Some(format!("{}/client.db", CLIENT_DB_PATH));
         match config {
             Some(config) => {
                 fs::copy(config, CLIENT_CONFIG_PATH)?;
@@ -47,7 +50,7 @@ impl Service {
         Ok(())
     }
     fn install_and_start(&self) -> Result<()> {
-        let label: ServiceLabel = "com.mycelial.myceliald".parse()?;
+        let label: ServiceLabel = SERVICE_LABEL.parse()?;
         let manager = <dyn ServiceManager>::native().expect("Failed to detect management platform");
         manager
             .install(ServiceInstallCtx {
@@ -66,6 +69,23 @@ impl Service {
             })
             .expect("Failed to start");
         println!("Mycelial client installed and started");
+        Ok(())
+    }
+    fn uninstall_client(&self) -> Result<()> {
+        let label: ServiceLabel = SERVICE_LABEL.parse()?;
+        let manager = <dyn ServiceManager>::native().expect("Failed to detect management platform");
+        match manager.stop(ServiceStopCtx {
+            label: label.clone(),
+        }) {
+            Ok(_) => println!("Myceliald client stopped"),
+            Err(_) => println!("Myceliald client not running"),
+        }
+        manager
+            .uninstall(ServiceUninstallCtx {
+                label: label.clone(),
+            })
+            .expect("Failed to uninstall");
+        println!("Myceliald client removed");
         Ok(())
     }
 }

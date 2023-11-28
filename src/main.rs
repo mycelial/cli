@@ -23,6 +23,12 @@ enum ServiceCommands {
         #[clap(long)]
         client: bool,
     },
+    /// Remove a service
+    Remove {
+        /// Remove the client as a service
+        #[clap(long)]
+        client: bool,
+    },
 }
 
 #[derive(Debug, Subcommand)]
@@ -196,19 +202,29 @@ async fn run(args: Cli) -> Result<(), Box<dyn std::error::Error + Send + Sync>> 
                 add_destination(&config_file_name).await?;
             }
         }
-        Commands::Service { action } => match action {
-            ServiceCommands::Add { config, client } => {
-                if !Uid::effective().is_root() {
-                    return Err("You must run this command with root permissions(sudo)".into());
+        Commands::Service { action } => {
+            if !Uid::effective().is_root() {
+                return Err("You must run this command with root permissions(sudo)".into());
+            }
+            match action {
+                ServiceCommands::Add { config, client } => {
+                    if client {
+                        let service = Service::new();
+                        service.add_client(config).await?;
+                    } else {
+                        println!("client not specified");
+                    }
                 }
-                if client {
-                    let service = Service::new();
-                    service.add_client(config).await?;
-                } else {
-                    println!("client not specified");
+                ServiceCommands::Remove { client } => {
+                    if client {
+                        let service = Service::new();
+                        service.remove_client().await?;
+                    } else {
+                        println!("client not specified");
+                    }
                 }
             }
-        },
+        }
     }
     Ok(())
 }
