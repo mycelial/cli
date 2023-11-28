@@ -1,5 +1,8 @@
 use clap::{Parser, Subcommand};
 use mycelial::{add_destination, add_source, destroy, init, reset, start};
+mod service;
+use nix::unistd::Uid;
+use service::Service;
 
 #[derive(Debug, Parser)]
 #[command(name = "mycelial")]
@@ -7,6 +10,19 @@ use mycelial::{add_destination, add_source, destroy, init, reset, start};
 struct Cli {
     #[command(subcommand)]
     command: Commands,
+}
+
+#[derive(Debug, Subcommand)]
+enum ServiceCommands {
+    /// Add a new service
+    Add {
+        /// Sets a custom config file
+        #[clap(short, long, value_parser)]
+        config: Option<String>,
+        /// Installs the client as a service
+        #[clap(long)]
+        client: bool,
+    },
 }
 
 #[derive(Debug, Subcommand)]
@@ -70,6 +86,11 @@ enum Commands {
         /// specify a config file name to use
         #[arg(long)]
         config: Option<String>,
+    },
+    /// install mycelial as a service
+    Service {
+        #[clap(subcommand)]
+        action: ServiceCommands,
     },
 }
 
@@ -175,6 +196,19 @@ async fn run(args: Cli) -> Result<(), Box<dyn std::error::Error + Send + Sync>> 
                 add_destination(&config_file_name).await?;
             }
         }
+        Commands::Service { action } => match action {
+            ServiceCommands::Add { config, client } => {
+                if !Uid::effective().is_root() {
+                    return Err("You must run this command with root permissions(sudo)".into());
+                }
+                if client {
+                    let service = Service::new();
+                    service.add_client(config).await?;
+                } else {
+                    println!("client not specified");
+                }
+            }
+        },
     }
     Ok(())
 }
