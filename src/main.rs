@@ -32,10 +32,26 @@ enum ServiceCommands {
         #[clap(long)]
         purge: bool,
     },
-    Status,
-    Start,
-    Stop,
-    Restart,
+    Status {
+        /// show status of the client service (myceliald)
+        #[clap(long)]
+        client: bool,
+    },
+    Start {
+        /// start the client service (myceliald)
+        #[clap(long)]
+        client: bool,
+    },
+    Stop {
+        /// stop the client service (myceliald)
+        #[clap(long)]
+        client: bool,
+    },
+    Restart {
+        /// restart the client service (myceliald)
+        #[clap(long)]
+        client: bool,
+    },
 }
 
 #[derive(Debug, Subcommand)]
@@ -230,21 +246,41 @@ async fn run(args: Cli) -> Result<(), Box<dyn std::error::Error + Send + Sync>> 
                         println!("client not specified");
                     }
                 }
-                ServiceCommands::Status => {
+                ServiceCommands::Status { client } => {
                     let service = Service::new();
-                    service.status()?;
+                    if client {
+                        service.status_client()?;
+                    }
+                    if !client {
+                        println!("client not specified");
+                    }
                 }
-                ServiceCommands::Start => {
+                ServiceCommands::Start { client } => {
                     let service = Service::new();
-                    service.start()?;
+                    if client {
+                        service.start_client()?;
+                    }
+                    if !client {
+                        println!("client not specified");
+                    }
                 }
-                ServiceCommands::Stop => {
+                ServiceCommands::Stop { client } => {
                     let service = Service::new();
-                    service.stop()?;
+                    if client {
+                        service.stop_client()?;
+                    }
+                    if !client {
+                        println!("client not specified");
+                    }
                 }
-                ServiceCommands::Restart => {
+                ServiceCommands::Restart { client } => {
                     let service = Service::new();
-                    service.restart()?;
+                    if client {
+                        service.restart_client()?;
+                    }
+                    if !client {
+                        println!("client not specified");
+                    }
                 }
             }
         }

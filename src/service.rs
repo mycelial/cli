@@ -138,15 +138,15 @@ impl Service {
         println!("myceliald client database deleted {}", CLIENT_DB_PATH);
         Ok(())
     }
-    pub fn status(&self) -> Result<()> {
+    pub fn status_client(&self) -> Result<()> {
         match std::env::consts::OS {
-            "macos" => self.status_launchctrl()?,
-            "linux" => self.status_systemd()?,
+            "macos" => self.status_client_launchctrl()?,
+            "linux" => self.status_client_systemd()?,
             _ => {}
         }
         Ok(())
     }
-    fn status_launchctrl(&self) -> Result<()> {
+    fn status_client_launchctrl(&self) -> Result<()> {
         let mut is_first_line = true;
         let output = Command::new("launchctl")
             .arg("list")
@@ -164,7 +164,7 @@ impl Service {
         }
         Ok(())
     }
-    fn status_systemd(&self) -> Result<()> {
+    fn status_client_systemd(&self) -> Result<()> {
         let label: ServiceLabel = SERVICE_LABEL.parse()?;
         let script_name = label.to_script_name();
         let output = Command::new("systemctl")
@@ -179,17 +179,17 @@ impl Service {
         }
         Ok(())
     }
-    pub fn start(&self) -> Result<()> {
+    pub fn start_client(&self) -> Result<()> {
         match std::env::consts::OS {
-            "macos" => self.start_launchctrl()?,
-            "linux" => self.start_systemd()?,
+            "macos" => self.start_client_launchctrl()?,
+            "linux" => self.start_client_systemd()?,
             _ => {}
         }
         Ok(())
     }
     // service_manager crate doesn't support launchctrl properly
     // so we're using the command line tool directly
-    fn start_launchctrl(&self) -> Result<()> {
+    fn start_client_launchctrl(&self) -> Result<()> {
         let plist_path = format!("/Library/LaunchDaemons/{}.plist", SERVICE_LABEL);
         Command::new("launchctl")
             .arg("load")
@@ -199,7 +199,7 @@ impl Service {
             .wait()?;
         Ok(())
     }
-    pub fn start_systemd(&self) -> Result<()> {
+    pub fn start_client_systemd(&self) -> Result<()> {
         let label: ServiceLabel = SERVICE_LABEL.parse()?;
         let manager = <dyn ServiceManager>::native().expect("Failed to detect management platform");
         manager
@@ -209,17 +209,17 @@ impl Service {
             .expect("Failed to start");
         Ok(())
     }
-    pub fn stop(&self) -> Result<()> {
+    pub fn stop_client(&self) -> Result<()> {
         match std::env::consts::OS {
-            "macos" => self.stop_launchctrl()?,
-            "linux" => self.stop_systemd()?,
+            "macos" => self.stop_client_launchctrl()?,
+            "linux" => self.stop_client_systemd()?,
             _ => {}
         }
         Ok(())
     }
     // service_manager crate doesn't support launchctrl properly
     // so we're using the command line tool directly
-    fn stop_launchctrl(&self) -> Result<()> {
+    fn stop_client_launchctrl(&self) -> Result<()> {
         let plist_path = format!("/Library/LaunchDaemons/{}.plist", SERVICE_LABEL);
         Command::new("launchctl")
             .arg("unload")
@@ -229,7 +229,7 @@ impl Service {
             .wait()?;
         Ok(())
     }
-    fn stop_systemd(&self) -> Result<()> {
+    fn stop_client_systemd(&self) -> Result<()> {
         let label: ServiceLabel = SERVICE_LABEL.parse()?;
         let manager = <dyn ServiceManager>::native().expect("Failed to detect management platform");
         manager
@@ -239,15 +239,15 @@ impl Service {
             .expect("Failed to stop");
         Ok(())
     }
-    pub fn restart(&self) -> Result<()> {
+    pub fn restart_client(&self) -> Result<()> {
         match std::env::consts::OS {
             "macos" => {
-                self.stop_launchctrl()?;
-                self.start_launchctrl()?;
+                self.stop_client_launchctrl()?;
+                self.start_client_launchctrl()?;
             }
             "linux" => {
-                self.stop_systemd()?;
-                self.start_systemd()?;
+                self.stop_client_systemd()?;
+                self.start_client_systemd()?;
             }
             _ => {}
         }
