@@ -5,6 +5,7 @@ use std::ffi::OsString;
 use std::fs;
 use std::path::Path;
 use std::path::PathBuf;
+use std::process::{Command, Stdio};
 
 pub struct Service {}
 
@@ -135,6 +136,35 @@ impl Service {
         println!("myceliald client binary deleted {}", CLIENT_DEST_PATH);
         fs::remove_file(CLIENT_DB_PATH)?;
         println!("myceliald client database deleted {}", CLIENT_DB_PATH);
+        Ok(())
+    }
+    pub fn status(&self) -> Result<()> {
+        match std::env::consts::OS {
+            "macos" => self.status_launchctrl()?,
+            "linux" => self.status_systemd()?,
+            _ => {}
+        }
+        Ok(())
+    }
+    fn status_launchctrl(&self) -> Result<()> {
+        let mut is_first_line = true;
+        let output = Command::new("launchctl")
+            .arg("list")
+            .stdout(Stdio::piped())
+            .spawn()?
+            .wait_with_output()?;
+        let stdout = String::from_utf8_lossy(&output.stdout);
+        for line in stdout.lines() {
+            if is_first_line {
+                println!("{}", line);
+                is_first_line = false;
+            } else if line.contains(SERVICE_LABEL) {
+                println!("{}", line);
+            }
+        }
+        Ok(())
+    }
+    fn status_systemd(&self) -> Result<()> {
         Ok(())
     }
 }

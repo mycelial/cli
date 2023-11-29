@@ -32,6 +32,7 @@ enum ServiceCommands {
         #[clap(long)]
         purge: bool,
     },
+    Status,
 }
 
 #[derive(Debug, Subcommand)]
@@ -225,6 +226,10 @@ async fn run(args: Cli) -> Result<(), Box<dyn std::error::Error + Send + Sync>> 
                     } else {
                         println!("client not specified");
                     }
+                }
+                ServiceCommands::Status => {
+                    let service = Service::new();
+                    service.status()?;
                 }
             }
         }
