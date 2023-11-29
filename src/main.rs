@@ -28,6 +28,9 @@ enum ServiceCommands {
         /// Remove the client as a service
         #[clap(long)]
         client: bool,
+        /// Removes artifacts (config, database)
+        #[clap(long)]
+        purge: bool,
     },
 }
 
@@ -215,10 +218,10 @@ async fn run(args: Cli) -> Result<(), Box<dyn std::error::Error + Send + Sync>> 
                         println!("client not specified");
                     }
                 }
-                ServiceCommands::Remove { client } => {
+                ServiceCommands::Remove { client, purge } => {
                     if client {
                         let service = Service::new();
-                        service.remove_client().await?;
+                        service.remove_client(purge).await?;
                     } else {
                         println!("client not specified");
                     }

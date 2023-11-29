@@ -29,7 +29,7 @@ pub async fn init(client: bool, server: bool, config_file_name: String) -> Resul
         "{}",
         "Create a config file by answering the following questions.".green()
     );
-    create_config(config_file_name, None).await?;
+    create_config(config_file_name, None, None).await?;
     Ok(())
 }
 
@@ -543,9 +543,10 @@ fn prompt_mysql_destination(config: &mut Configuration) -> Result<()> {
     Ok(())
 }
 
-enum ConfigAction {
+pub enum ConfigAction {
     Create,
     Append,
+    UseExisting,
 }
 
 fn config_file_action(config_file_name: String) -> Result<(ConfigAction, std::string::String)> {
@@ -595,14 +596,22 @@ fn config_file_action(config_file_name: String) -> Result<(ConfigAction, std::st
 pub async fn create_config(
     config_file_name: String,
     database_storage_path: Option<String>,
+    config_action: Option<ConfigAction>,
 ) -> Result<()> {
-    let (action, config_file_name) = config_file_action(config_file_name)?;
+    let (action, config_file_name) = if config_action.is_none() {
+        config_file_action(config_file_name)?
+    } else {
+        (config_action.unwrap(), config_file_name)
+    };
     match action {
         ConfigAction::Create => {
             return do_create_config(config_file_name, database_storage_path).await;
         }
         ConfigAction::Append => {
             return do_append_config(config_file_name).await;
+        }
+        ConfigAction::UseExisting => {
+            return Ok(());
         }
     }
 }
@@ -858,7 +867,7 @@ pub async fn add_source(config_file_name: &str) -> Result<()> {
             }
         }
     } else {
-        create_config(config_file_name.to_string(), None).await?;
+        create_config(config_file_name.to_string(), None, None).await?;
     }
     Ok(())
 }
@@ -875,7 +884,7 @@ pub async fn add_destination(config_file_name: &str) -> Result<()> {
             }
         }
     } else {
-        create_config(config_file_name.to_string(), None).await?;
+        create_config(config_file_name.to_string(), None, None).await?;
     }
     Ok(())
 }

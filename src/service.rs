@@ -1,4 +1,5 @@
-use mycelial::{create_config, download_binaries};
+use dialoguer::{theme::ColorfulTheme, Confirm};
+use mycelial::{create_config, download_binaries, ConfigAction};
 use service_manager::*;
 use std::ffi::OsString;
 use std::fs;
@@ -10,7 +11,7 @@ pub struct Service {}
 type Result<T> = std::result::Result<T, Box<dyn std::error::Error + Send + Sync>>;
 const CLIENT_DEST_PATH: &str = "/usr/local/bin/myceliald";
 const CLIENT_CONFIG_PATH: &str = "/etc/mycelial/config.toml";
-const CLIENT_DB_PATH: &str = "/var/lib/mycelial";
+const CLIENT_DB_PATH: &str = "/var/lib/mycelial/client.db";
 const SERVICE_LABEL: &str = "com.mycelial.myceliald";
 impl Service {
     pub fn new() -> Service {
@@ -19,11 +20,15 @@ impl Service {
     pub async fn add_client(&self, config: Option<String>) -> Result<()> {
         self.download_client().await?;
         self.configure_client(config).await?;
+        self.check_client_database()?;
         self.install_and_start()?;
         Ok(())
     }
-    pub async fn remove_client(&self) -> Result<()> {
+    pub async fn remove_client(&self, purge: bool) -> Result<()> {
         self.uninstall_client()?;
+        if purge {
+            self.purge_client()?;
+        }
         Ok(())
     }
     async fn download_client(&self) -> Result<()> {
@@ -35,16 +40,48 @@ impl Service {
         fs::rename("myceliald", CLIENT_DEST_PATH)?;
         Ok(())
     }
+    fn check_client_database(&self) -> Result<()> {
+        if Path::new(CLIENT_DB_PATH).exists() {
+            let theme = ColorfulTheme::default();
+            let confirm = Confirm::with_theme(&theme)
+                .with_prompt("Overwrite existing client database?")
+                .default(false)
+                .interact()?;
+            if confirm {
+                fs::remove_file(CLIENT_DB_PATH)?;
+            }
+        }
+        Ok(())
+    }
+
     async fn configure_client(&self, config: Option<String>) -> Result<()> {
-        fs::create_dir_all(CLIENT_DB_PATH)?;
+        fs::create_dir_all("/var/lib/mycelial")?;
         fs::create_dir_all("/etc/mycelial")?;
-        let database_storage_path = Some(format!("{}/client.db", CLIENT_DB_PATH));
+        let mut config_action: Option<ConfigAction> = None;
+        if Path::new(CLIENT_CONFIG_PATH).exists() {
+            let theme = ColorfulTheme::default();
+            let confirm = Confirm::with_theme(&theme)
+                .with_prompt("Overwrite existing configuration?")
+                .default(false)
+                .interact()?;
+            if confirm {
+                config_action = Some(ConfigAction::Create);
+            } else {
+                config_action = Some(ConfigAction::UseExisting);
+            }
+        }
+        let database_storage_path = Some(CLIENT_DB_PATH.to_string());
         match config {
             Some(config) => {
                 fs::copy(config, CLIENT_CONFIG_PATH)?;
             }
             None => {
-                create_config(CLIENT_CONFIG_PATH.to_string(), database_storage_path).await?;
+                create_config(
+                    CLIENT_CONFIG_PATH.to_string(),
+                    database_storage_path,
+                    config_action,
+                )
+                .await?;
             }
         }
         Ok(())
@@ -85,7 +122,19 @@ impl Service {
                 label: label.clone(),
             })
             .expect("Failed to uninstall");
-        println!("Myceliald client removed");
+        println!("myceliald service removed");
+        Ok(())
+    }
+    fn purge_client(&self) -> Result<()> {
+        fs::remove_file(CLIENT_CONFIG_PATH)?;
+        println!(
+            "myceliald client configuration deleted {}",
+            CLIENT_CONFIG_PATH
+        );
+        fs::remove_file(CLIENT_DEST_PATH)?;
+        println!("myceliald client binary deleted {}", CLIENT_DEST_PATH);
+        fs::remove_file(CLIENT_DB_PATH)?;
+        println!("myceliald client database deleted {}", CLIENT_DB_PATH);
         Ok(())
     }
 }
