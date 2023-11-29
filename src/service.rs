@@ -165,6 +165,92 @@ impl Service {
         Ok(())
     }
     fn status_systemd(&self) -> Result<()> {
+        let label: ServiceLabel = SERVICE_LABEL.parse()?;
+        let script_name = label.to_script_name();
+        let output = Command::new("systemctl")
+            .arg("status")
+            .arg(script_name)
+            .stdout(Stdio::piped())
+            .spawn()?
+            .wait_with_output()?;
+        let stdout = String::from_utf8_lossy(&output.stdout);
+        for line in stdout.lines() {
+            println!("{}", line);
+        }
+        Ok(())
+    }
+    pub fn start(&self) -> Result<()> {
+        match std::env::consts::OS {
+            "macos" => self.start_launchctrl()?,
+            "linux" => self.start_systemd()?,
+            _ => {}
+        }
+        Ok(())
+    }
+    // service_manager crate doesn't support launchctrl properly
+    // so we're using the command line tool directly
+    fn start_launchctrl(&self) -> Result<()> {
+        let plist_path = format!("/Library/LaunchDaemons/{}.plist", SERVICE_LABEL);
+        Command::new("launchctl")
+            .arg("load")
+            .arg(plist_path)
+            .stdout(Stdio::piped())
+            .spawn()?
+            .wait()?;
+        Ok(())
+    }
+    pub fn start_systemd(&self) -> Result<()> {
+        let label: ServiceLabel = SERVICE_LABEL.parse()?;
+        let manager = <dyn ServiceManager>::native().expect("Failed to detect management platform");
+        manager
+            .start(ServiceStartCtx {
+                label: label.clone(),
+            })
+            .expect("Failed to start");
+        Ok(())
+    }
+    pub fn stop(&self) -> Result<()> {
+        match std::env::consts::OS {
+            "macos" => self.stop_launchctrl()?,
+            "linux" => self.stop_systemd()?,
+            _ => {}
+        }
+        Ok(())
+    }
+    // service_manager crate doesn't support launchctrl properly
+    // so we're using the command line tool directly
+    fn stop_launchctrl(&self) -> Result<()> {
+        let plist_path = format!("/Library/LaunchDaemons/{}.plist", SERVICE_LABEL);
+        Command::new("launchctl")
+            .arg("unload")
+            .arg(plist_path)
+            .stdout(Stdio::piped())
+            .spawn()?
+            .wait()?;
+        Ok(())
+    }
+    fn stop_systemd(&self) -> Result<()> {
+        let label: ServiceLabel = SERVICE_LABEL.parse()?;
+        let manager = <dyn ServiceManager>::native().expect("Failed to detect management platform");
+        manager
+            .stop(ServiceStopCtx {
+                label: label.clone(),
+            })
+            .expect("Failed to stop");
+        Ok(())
+    }
+    pub fn restart(&self) -> Result<()> {
+        match std::env::consts::OS {
+            "macos" => {
+                self.stop_launchctrl()?;
+                self.start_launchctrl()?;
+            }
+            "linux" => {
+                self.stop_systemd()?;
+                self.start_systemd()?;
+            }
+            _ => {}
+        }
         Ok(())
     }
 }

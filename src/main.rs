@@ -33,6 +33,9 @@ enum ServiceCommands {
         purge: bool,
     },
     Status,
+    Start,
+    Stop,
+    Restart,
 }
 
 #[derive(Debug, Subcommand)]
@@ -230,6 +233,18 @@ async fn run(args: Cli) -> Result<(), Box<dyn std::error::Error + Send + Sync>> 
                 ServiceCommands::Status => {
                     let service = Service::new();
                     service.status()?;
+                }
+                ServiceCommands::Start => {
+                    let service = Service::new();
+                    service.start()?;
+                }
+                ServiceCommands::Stop => {
+                    let service = Service::new();
+                    service.stop()?;
+                }
+                ServiceCommands::Restart => {
+                    let service = Service::new();
+                    service.restart()?;
                 }
             }
         }
