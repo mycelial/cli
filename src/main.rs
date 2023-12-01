@@ -32,21 +32,25 @@ enum ServiceCommands {
         #[clap(long)]
         purge: bool,
     },
+    /// Check status of service
     Status {
         /// show status of the client service (myceliald)
         #[clap(long)]
         client: bool,
     },
+    /// Start a service
     Start {
         /// start the client service (myceliald)
         #[clap(long)]
         client: bool,
     },
+    /// Stop a service
     Stop {
         /// stop the client service (myceliald)
         #[clap(long)]
         client: bool,
     },
+    /// Restart a service
     Restart {
         /// restart the client service (myceliald)
         #[clap(long)]
