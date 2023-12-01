@@ -28,7 +28,6 @@ fn cli_init_config_node_server() -> Result<(), Box<dyn Error>> {
     let mut session = init_session()?;
 
     session.send_line("exit")?;
-    session.exp_string("Run `mycelial start` to start Mycelial")?;
     session.exp_eof()?;
 
     let config_file = temp_dir.child("config.toml");

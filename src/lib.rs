@@ -117,8 +117,9 @@ pub async fn reset(client: bool, server: bool, config_file_name: &str) -> Result
         .interact()
         .unwrap();
     if answer {
-        let client_db_path = storage_path(config_file_name).unwrap();
         if client {
+            let client_db_path =
+                storage_path(config_file_name).expect("Could not find config.toml");
             let result = remove_file(&client_db_path);
             match result {
                 Ok(_) => {
@@ -702,7 +703,6 @@ fn source_prompts(config: &mut Configuration, config_file_name: Option<String>) 
                     match config.save(&config_file_name) {
                         Ok(_) => {
                             println!("{}", format!("{} updated!", config_file_name).green());
-                            println!("{}", "Run `mycelial start` to start Mycelial".green());
                         }
                         Err(_error) => {
                             return Err(format!(
@@ -794,7 +794,6 @@ fn destination_prompts(config: &mut Configuration, config_file_name: Option<Stri
                     match config.save(&config_file_name) {
                         Ok(_) => {
                             println!("{}", "config file updated!".green());
-                            println!("{}", "Run `mycelial start` to start Mycelial".green());
                         }
                         Err(_error) => {
                             return Err(format!(
@@ -906,7 +905,6 @@ fn source_destination_loop(config: &mut Configuration, config_file_name: String)
             match config.save(&config_file_name) {
                 Ok(_) => {
                     println!("{}", format!("{} updated!", config_file_name).green());
-                    println!("{}", "Run `mycelial start` to start Mycelial".green());
                 }
                 Err(_error) => {
                     return Err("error creating config file".into());
