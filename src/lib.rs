@@ -29,7 +29,7 @@ pub async fn init(client: bool, server: bool, config_file_name: String) -> Resul
         "{}",
         "Create a config file by answering the following questions.".green()
     );
-    create_config(config_file_name).await?;
+    create_config(config_file_name, None, None).await?;
     Ok(())
 }
 
@@ -117,8 +117,9 @@ pub async fn reset(client: bool, server: bool, config_file_name: &str) -> Result
         .interact()
         .unwrap();
     if answer {
-        let client_db_path = storage_path(config_file_name).unwrap();
         if client {
+            let client_db_path =
+                storage_path(config_file_name).expect("Could not find config.toml");
             let result = remove_file(&client_db_path);
             match result {
                 Ok(_) => {
@@ -208,7 +209,7 @@ fn save_pid(executable: Executable, pid: u32) -> Result<()> {
     Ok(())
 }
 
-async fn download_binaries(client: bool, server: bool) -> Result<()> {
+pub async fn download_binaries(client: bool, server: bool) -> Result<()> {
     if server && client {
         println!("Downloading and unarchiving server and myceliald (client)...");
     } else if server {
@@ -543,9 +544,10 @@ fn prompt_mysql_destination(config: &mut Configuration) -> Result<()> {
     Ok(())
 }
 
-enum ConfigAction {
+pub enum ConfigAction {
     Create,
     Append,
+    UseExisting,
 }
 
 fn config_file_action(config_file_name: String) -> Result<(ConfigAction, std::string::String)> {
@@ -592,14 +594,25 @@ fn config_file_action(config_file_name: String) -> Result<(ConfigAction, std::st
     }
 }
 
-async fn create_config(config_file_name: String) -> Result<()> {
-    let (action, config_file_name) = config_file_action(config_file_name)?;
+pub async fn create_config(
+    config_file_name: String,
+    database_storage_path: Option<String>,
+    config_action: Option<ConfigAction>,
+) -> Result<()> {
+    let (action, config_file_name) = if config_action.is_none() {
+        config_file_action(config_file_name)?
+    } else {
+        (config_action.unwrap(), config_file_name)
+    };
     match action {
         ConfigAction::Create => {
-            return do_create_config(config_file_name).await;
+            return do_create_config(config_file_name, database_storage_path).await;
         }
         ConfigAction::Append => {
             return do_append_config(config_file_name).await;
+        }
+        ConfigAction::UseExisting => {
+            return Ok(());
         }
     }
 }
@@ -616,7 +629,14 @@ async fn do_append_config(config_file_name: String) -> Result<()> {
     Ok(())
 }
 
-async fn do_create_config(config_file_name: String) -> Result<()> {
+async fn do_create_config(
+    config_file_name: String,
+    database_storage_path: Option<String>,
+) -> Result<()> {
+    let database_storage_path = match database_storage_path {
+        Some(database_storage_path) => database_storage_path,
+        None => "client.db".to_string(),
+    };
     let mut config = Configuration::new();
     let client_name: String = Input::with_theme(&ColorfulTheme::default())
         .with_prompt("Client Name:")
@@ -636,7 +656,7 @@ async fn do_create_config(config_file_name: String) -> Result<()> {
 
     let unique_id = format!("{}-{}", client_id, id);
 
-    config.set_node(client_name, unique_id, "client.db".to_string());
+    config.set_node(client_name, unique_id, database_storage_path);
 
     let server: String = Input::with_theme(&ColorfulTheme::default())
         .with_prompt("Server:")
@@ -683,7 +703,6 @@ fn source_prompts(config: &mut Configuration, config_file_name: Option<String>) 
                     match config.save(&config_file_name) {
                         Ok(_) => {
                             println!("{}", format!("{} updated!", config_file_name).green());
-                            println!("{}", "Run `mycelial start` to start Mycelial".green());
                         }
                         Err(_error) => {
                             return Err(format!(
@@ -775,7 +794,6 @@ fn destination_prompts(config: &mut Configuration, config_file_name: Option<Stri
                     match config.save(&config_file_name) {
                         Ok(_) => {
                             println!("{}", "config file updated!".green());
-                            println!("{}", "Run `mycelial start` to start Mycelial".green());
                         }
                         Err(_error) => {
                             return Err(format!(
@@ -848,7 +866,7 @@ pub async fn add_source(config_file_name: &str) -> Result<()> {
             }
         }
     } else {
-        create_config(config_file_name.to_string()).await?;
+        create_config(config_file_name.to_string(), None, None).await?;
     }
     Ok(())
 }
@@ -865,7 +883,7 @@ pub async fn add_destination(config_file_name: &str) -> Result<()> {
             }
         }
     } else {
-        create_config(config_file_name.to_string()).await?;
+        create_config(config_file_name.to_string(), None, None).await?;
     }
     Ok(())
 }
@@ -887,7 +905,6 @@ fn source_destination_loop(config: &mut Configuration, config_file_name: String)
             match config.save(&config_file_name) {
                 Ok(_) => {
                     println!("{}", format!("{} updated!", config_file_name).green());
-                    println!("{}", "Run `mycelial start` to start Mycelial".green());
                 }
                 Err(_error) => {
                     return Err("error creating config file".into());

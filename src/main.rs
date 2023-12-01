@@ -1,5 +1,8 @@
 use clap::{Parser, Subcommand};
 use mycelial::{add_destination, add_source, destroy, init, reset, start};
+mod service;
+use nix::unistd::Uid;
+use service::Service;
 
 #[derive(Debug, Parser)]
 #[command(name = "mycelial")]
@@ -7,6 +10,52 @@ use mycelial::{add_destination, add_source, destroy, init, reset, start};
 struct Cli {
     #[command(subcommand)]
     command: Commands,
+}
+
+#[derive(Debug, Subcommand)]
+enum ServiceCommands {
+    /// Add a new service
+    Add {
+        /// Sets a custom config file
+        #[clap(short, long, value_parser)]
+        config: Option<String>,
+        /// Installs the client as a service
+        #[clap(long)]
+        client: bool,
+    },
+    /// Remove a service
+    Remove {
+        /// Remove the client as a service
+        #[clap(long)]
+        client: bool,
+        /// Removes artifacts (config, database)
+        #[clap(long)]
+        purge: bool,
+    },
+    /// Check status of service
+    Status {
+        /// show status of the client service (myceliald)
+        #[clap(long)]
+        client: bool,
+    },
+    /// Start a service
+    Start {
+        /// start the client service (myceliald)
+        #[clap(long)]
+        client: bool,
+    },
+    /// Stop a service
+    Stop {
+        /// stop the client service (myceliald)
+        #[clap(long)]
+        client: bool,
+    },
+    /// Restart a service
+    Restart {
+        /// restart the client service (myceliald)
+        #[clap(long)]
+        client: bool,
+    },
 }
 
 #[derive(Debug, Subcommand)]
@@ -70,6 +119,11 @@ enum Commands {
         /// specify a config file name to use
         #[arg(long)]
         config: Option<String>,
+    },
+    /// install mycelial as a service
+    Service {
+        #[clap(subcommand)]
+        action: ServiceCommands,
     },
 }
 
@@ -173,6 +227,65 @@ async fn run(args: Cli) -> Result<(), Box<dyn std::error::Error + Send + Sync>> 
             }
             if destination {
                 add_destination(&config_file_name).await?;
+            }
+        }
+        Commands::Service { action } => {
+            if !Uid::effective().is_root() {
+                return Err("You must run this command with root permissions(sudo)".into());
+            }
+            match action {
+                ServiceCommands::Add { config, client } => {
+                    if client {
+                        let service = Service::new();
+                        service.add_client(config).await?;
+                    } else {
+                        println!("client not specified");
+                    }
+                }
+                ServiceCommands::Remove { client, purge } => {
+                    if client {
+                        let service = Service::new();
+                        service.remove_client(purge).await?;
+                    } else {
+                        println!("client not specified");
+                    }
+                }
+                ServiceCommands::Status { client } => {
+                    let service = Service::new();
+                    if client {
+                        service.status_client()?;
+                    }
+                    if !client {
+                        println!("client not specified");
+                    }
+                }
+                ServiceCommands::Start { client } => {
+                    let service = Service::new();
+                    if client {
+                        service.start_client()?;
+                    }
+                    if !client {
+                        println!("client not specified");
+                    }
+                }
+                ServiceCommands::Stop { client } => {
+                    let service = Service::new();
+                    if client {
+                        service.stop_client()?;
+                    }
+                    if !client {
+                        println!("client not specified");
+                    }
+                }
+                ServiceCommands::Restart { client } => {
+                    let service = Service::new();
+                    if client {
+                        service.restart_client()?;
+                    }
+                    if !client {
+                        println!("client not specified");
+                    }
+                }
             }
         }
     }

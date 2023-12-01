@@ -1,6 +1,6 @@
 [package]
 name = "mycelial"
-version = "0.2.0"
+version = "0.4.0"
 edition = "2021"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
@@ -13,13 +13,14 @@ tokio = { version = "1", features = ["full"] }
 tar = { package = "binstall-tar", version = "0.4.39" }
 toml = "0.8.2"
 dirs = "5.0"
-nix = { version = "0.27.1", features = ["signal"] }
+nix = { version = "0.27.1", features = ["signal", "user"] }
 colored = "2"
 indicatif = "0.17.7"
 futures-util = "0.3.14"
 uuid = { version = "1.5.0", features = ["v4"] }
 serde = { version = "1.0.192", features = ["derive"] }
 dialoguer = { version = "0.11.0", features = ["fuzzy-select"] }
+service-manager = "0.5.1"
 
 [dev-dependencies]
 assert_cmd = "2.0.12"
