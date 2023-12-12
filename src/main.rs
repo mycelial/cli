@@ -1,5 +1,5 @@
 use clap::{Parser, Subcommand};
-use mycelial::{add_destination, add_source, destroy, init, reset, start};
+use mycelial::{add_destination, add_source, destroy, download_binaries, init, reset, start};
 mod service;
 use nix::unistd::Uid;
 use service::Service;
@@ -125,6 +125,15 @@ enum Commands {
         #[clap(subcommand)]
         action: ServiceCommands,
     },
+    /// update mycelial binaries
+    Update {
+        /// update the client
+        #[arg(short, long)]
+        client: bool,
+        /// update the server
+        #[arg(short, long)]
+        server: bool,
+    },
 }
 
 #[tokio::main]
@@ -228,6 +237,15 @@ async fn run(args: Cli) -> Result<(), Box<dyn std::error::Error + Send + Sync>> 
             if destination {
                 add_destination(&config_file_name).await?;
             }
+        }
+        Commands::Update { client, server } => {
+            if !client && !server {
+                return Err(
+                    "update command must be run with the --client and/or --server options".into(),
+                );
+            }
+            download_binaries(client, server).await?;
+            println!("Update complete");
         }
         Commands::Service { action } => {
             if !Uid::effective().is_root() {
