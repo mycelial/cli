@@ -1,13 +1,16 @@
 [package]
 name = "mycelial"
-version = "0.4.0"
+version = "0.5.1"
 edition = "2021"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
 clap = { version = "4.4.6", features = ["derive"] }
-reqwest = { version = "0.11", features = ["stream", "rustls-tls"] }
+reqwest = { version = "0.11", default-features = false, features = [
+  "stream",
+  "rustls-tls",
+] }
 flate2 = "1.0.28"
 tokio = { version = "1", features = ["full"] }
 tar = { package = "binstall-tar", version = "0.4.39" }
