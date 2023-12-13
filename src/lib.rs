@@ -39,7 +39,7 @@ pub async fn start(client: bool, server: bool, config_file_name: String) -> Resu
         if !can_start_server() {
             println!(
                 "{}",
-                "Missing server binary. You must run `mycelial --local init` before `mycelial start`".red()
+                "Missing server binary. You must run `mycelial init --local` before `mycelial start`".red()
             );
             return Ok(());
         }
@@ -50,7 +50,7 @@ pub async fn start(client: bool, server: bool, config_file_name: String) -> Resu
         if !can_start_client(&config_file_name) {
             println!(
                 "{}",
-                "Missing myceliald binary or config file. You must run `mycelial --local init` before `mycelial start`".red()
+                "Missing myceliald binary or config file. You must run `mycelial init --local` before `mycelial start`".red()
             );
             return Ok(());
         }
