@@ -501,6 +501,95 @@ fn prompt_kafka_destination(config: &mut Configuration) -> Result<()> {
     Ok(())
 }
 
+fn prompt_postgres_source(config: &mut Configuration) -> Result<()> {
+    let display_name: String = Input::with_theme(&ColorfulTheme::default())
+        .with_prompt("Display name:")
+        .default("Postgres Source".to_string())
+        .allow_empty(false)
+        .interact_text()
+        .unwrap();
+    let user: String = Input::with_theme(&ColorfulTheme::default())
+        .with_prompt("Postgres username:")
+        .default("user".to_string())
+        .allow_empty(false)
+        .interact_text()
+        .unwrap();
+    let password = Password::with_theme(&ColorfulTheme::default())
+        .with_prompt("Postgres password:")
+        .interact()
+        .unwrap();
+    let address: String = Input::with_theme(&ColorfulTheme::default())
+        .with_prompt("Server address:")
+        .default("localhost".to_string())
+        .allow_empty(false)
+        .interact_text()
+        .unwrap();
+    let port: String = Input::with_theme(&ColorfulTheme::default())
+        .with_prompt("Postgres port:")
+        .default("5432".to_string())
+        .allow_empty(false)
+        .interact_text()
+        .unwrap();
+    let database: String = Input::with_theme(&ColorfulTheme::default())
+        .with_prompt("Database name:")
+        .default("test".to_string())
+        .allow_empty(false)
+        .interact_text()
+        .unwrap();
+    let schema: String = Input::with_theme(&ColorfulTheme::default())
+        .with_prompt("Schema:")
+        .default("public".to_string())
+        .allow_empty(false)
+        .interact_text()
+        .unwrap();
+    let tables: String = Input::with_theme(&ColorfulTheme::default())
+        .with_prompt("Tables:")
+        .default("*".to_string())
+        .allow_empty(false)
+        .interact_text()
+        .unwrap();
+    let poll_interval: i32 = Input::with_theme(&ColorfulTheme::default())
+        .with_prompt("Poll interval (seconds):")
+        .default(5)
+        .allow_empty(false)
+        .interact_text()
+        .unwrap();
+    let postgres_url = format!(
+        "postgres://{}:{}@{}:{}/{}",
+        user, password, address, port, database
+    );
+    config.add_postgres_connector_source(display_name, postgres_url, schema, tables, poll_interval);
+    Ok(())
+}
+
+fn prompt_excel_source(config: &mut Configuration) -> Result<()> {
+    let display_name: String = Input::with_theme(&ColorfulTheme::default())
+        .with_prompt("Display name:")
+        .default("Excel Source".to_string())
+        .allow_empty(false)
+        .interact_text()
+        .unwrap();
+    let path: String = Input::with_theme(&ColorfulTheme::default())
+        .with_prompt("Excel Path:")
+        .default("data.xlsx".to_string())
+        .allow_empty(false)
+        .interact_text()
+        .unwrap();
+    let sheets: String = Input::with_theme(&ColorfulTheme::default())
+        .with_prompt("Sheets:")
+        .default("*".to_string())
+        .allow_empty(false)
+        .interact_text()
+        .unwrap();
+    let strict: bool = Confirm::with_theme(&ColorfulTheme::default())
+        .with_prompt("Strict:")
+        .default(false)
+        .interact()
+        .unwrap();
+    config.add_excel_connector_source(display_name, path, sheets, strict);
+    Ok(())
+}
+
 fn prompt_mysql_destination(config: &mut Configuration) -> Result<()> {
     let display_name: String = Input::with_theme(&ColorfulTheme::default())
         .with_prompt("Display name:")
@@ -679,11 +768,19 @@ async fn do_create_config(
 fn source_prompts(config: &mut Configuration, config_file_name: Option<String>) -> Result<()> {
     const MYCELITE_SOURCE: &str = "Full SQLite replication source";
     const SQLITE_SOURCE: &str = "Append only SQLite source";
+    const EXCEL_SOURCE: &str = "Excel source";
+    const POSTGRES_SOURCE: &str = "Append only Postgres source";
     const EXIT: &str = "Exit";
     const PROMPT: &str = "What type of source would you like to add?";
     match config_file_name {
         Some(config_file_name) => {
-            let options = vec![MYCELITE_SOURCE, SQLITE_SOURCE, EXIT];
+            let options = vec![
+                MYCELITE_SOURCE,
+                SQLITE_SOURCE,
+                EXCEL_SOURCE,
+                POSTGRES_SOURCE,
+                EXIT,
+            ];
             let source = FuzzySelect::with_theme(&ColorfulTheme::default())
                 .with_prompt(PROMPT)
                 .items(&options)
@@ -698,8 +795,15 @@ fn source_prompts(config: &mut Configuration, config_file_name: Option<String>) 
                 1 => {
                     prompt_sqlite_source(config)?;
                 }
-                // EXIT
+                // EXCEL_SOURCE
                 2 => {
+                    prompt_excel_source(config)?;
+                }
+                3 => {
+                    prompt_postgres_source(config)?;
+                }
+                // EXIT
+                4 => {
                     match config.save(&config_file_name) {
                         Ok(_) => {
                             println!("{}", format!("{} updated!", config_file_name).green());
@@ -721,7 +825,12 @@ fn source_prompts(config: &mut Configuration, config_file_name: Option<String>) 
             source_prompts(config, Some(config_file_name))?;
         }
         None => {
-            let options = vec![MYCELITE_SOURCE, SQLITE_SOURCE];
+            let options = vec![
+                MYCELITE_SOURCE,
+                SQLITE_SOURCE,
+                EXCEL_SOURCE,
+                POSTGRES_SOURCE,
+            ];
             let source = FuzzySelect::with_theme(&ColorfulTheme::default())
                 .with_prompt(PROMPT)
                 .items(&options)
@@ -735,6 +844,13 @@ fn source_prompts(config: &mut Configuration, config_file_name: Option<String>) 
                 // SQLITE_SOURCE
                 1 => {
                     prompt_sqlite_source(config)?;
+                }
+                // EXCEL_SOURCE
+                2 => {
+                    prompt_excel_source(config)?;
+                }
+                3 => {
+                    prompt_postgres_source(config)?;
                 }
                 _ => {
                     panic!("Unknown source type");

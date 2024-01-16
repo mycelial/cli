@@ -112,6 +112,30 @@ impl Config {
             }
         }
     }
+    pub fn add_excel_connector_source(
+        &mut self,
+        display_name: String,
+        path: String,
+        sheets: String,
+        strict: bool,
+    ) {
+        match &mut self.sources {
+            Some(sources) => sources.push(Source::excel_connector {
+                display_name,
+                path,
+                sheets,
+                strict,
+            }),
+            None => {
+                self.sources = Some(vec![Source::excel_connector {
+                    display_name,
+                    path,
+                    sheets,
+                    strict,
+                }])
+            }
+        }
+    }
     pub fn save<T: AsRef<str>>(&self, path: T) -> Result<(), Box<dyn std::error::Error>> {
         let path = path.as_ref();
         let toml = toml::to_string(&self)?;
@@ -127,6 +151,34 @@ impl Config {
         match &self.node {
             Some(node) => Some(node.storage_path.clone()),
             None => None,
+        }
+    }
+
+    pub(crate) fn add_postgres_connector_source(
+        &mut self,
+        display_name: String,
+        postgres_url: String,
+        schema: String,
+        tables: String,
+        poll_interval: i32,
+    ) {
+        match &mut self.sources {
+            Some(sources) => sources.push(Source::postgres_connector {
+                display_name,
+                postgres_url,
+                schema,
+                tables,
+                poll_interval,
+            }),
+            None => {
+                self.sources = Some(vec![Source::postgres_connector {
+                    display_name,
+                    postgres_url,
+                    schema,
+                    tables,
+                    poll_interval,
+                }])
+            }
         }
     }
 }
@@ -159,6 +211,7 @@ enum Source {
     excel_connector {
         display_name: String,
         path: String,
+        sheets: String,
         strict: bool,
     },
     sqlite_physical_replication {
@@ -173,6 +226,13 @@ enum Source {
     sqlite_connector {
         display_name: String,
         path: String,
+    },
+    postgres_connector {
+        display_name: String,
+        postgres_url: String,
+        schema: String,
+        tables: String,
+        poll_interval: i32,
     },
 }
 
