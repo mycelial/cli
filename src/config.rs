@@ -136,6 +136,12 @@ impl Config {
             }
         }
     }
+    pub fn add_file_source(&mut self, display_name: String, path: String) {
+        match &mut self.sources {
+            Some(sources) => sources.push(Source::file { display_name, path }),
+            None => self.sources = Some(vec![Source::file { display_name, path }]),
+        }
+    }
     pub fn save<T: AsRef<str>>(&self, path: T) -> Result<(), Box<dyn std::error::Error>> {
         let path = path.as_ref();
         let toml = toml::to_string(&self)?;
@@ -268,6 +274,10 @@ enum Source {
         schema: String,
         tables: String,
         poll_interval: i32,
+    },
+    file {
+        display_name: String,
+        path: String,
     },
 }
 

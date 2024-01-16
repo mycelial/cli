@@ -119,6 +119,51 @@ fn cli_init_postgres_src() -> Result<(), Box<dyn Error>> {
 }
 
 #[test]
+fn cli_init_file_src() -> Result<(), Box<dyn Error>> {
+    #[derive(Deserialize)]
+    struct Config {
+        sources: Vec<Source>,
+    }
+
+    #[derive(Deserialize)]
+    struct Source {
+        #[serde(rename = "type")]
+        source_type: String,
+        display_name: String,
+        path: String,
+    }
+    let temp_dir = assert_fs::TempDir::new()?;
+    std::env::set_current_dir(&temp_dir)?;
+    let mut session = init_session()?;
+    session.send("Add Source")?;
+    session.exp_string("Add Source")?;
+    session.send_line("")?;
+    session.exp_string("What type of source would you like to add?")?;
+    session.send("File source")?;
+    session.exp_string("File source")?;
+    session.send_line("")?;
+    session.exp_string("Display name:")?;
+    session.send_line("my file source")?;
+    session.exp_string("Path:")?;
+    session.send_line("my_file.txt")?;
+    session.send("Exit")?;
+    session.exp_string("Exit")?;
+    session.send_line("")?;
+    session.exp_eof()?;
+
+    let config_file = temp_dir.child("config.toml");
+    let config_file_contents = std::fs::read_to_string(config_file.path())?;
+    let parsed: Config = toml::from_str(&config_file_contents)?;
+    assert_eq!(parsed.sources.len(), 1);
+    assert_eq!(parsed.sources[0].source_type, "file");
+    assert_eq!(parsed.sources[0].display_name, "my file source");
+    assert_eq!(parsed.sources[0].path, "my_file.txt");
+
+    temp_dir.close()?;
+    Ok(())
+}
+
+#[test]
 fn cli_init_mysql_src() -> Result<(), Box<dyn Error>> {
     #[derive(Deserialize)]
     struct Config {
