@@ -181,6 +181,34 @@ impl Config {
             }
         }
     }
+
+    pub(crate) fn add_mysql_connector_source(
+        &mut self,
+        display_name: String,
+        mysql_url: String,
+        schema: String,
+        tables: String,
+        poll_interval: i32,
+    ) {
+        match &mut self.sources {
+            Some(sources) => sources.push(Source::mysql_connector {
+                display_name,
+                mysql_url,
+                schema,
+                tables,
+                poll_interval,
+            }),
+            None => {
+                self.sources = Some(vec![Source::mysql_connector {
+                    display_name,
+                    mysql_url,
+                    schema,
+                    tables,
+                    poll_interval,
+                }])
+            }
+        }
+    }
 }
 
 #[derive(Serialize, Deserialize)]
@@ -230,6 +258,13 @@ enum Source {
     postgres_connector {
         display_name: String,
         postgres_url: String,
+        schema: String,
+        tables: String,
+        poll_interval: i32,
+    },
+    mysql_connector {
+        display_name: String,
+        mysql_url: String,
         schema: String,
         tables: String,
         poll_interval: i32,

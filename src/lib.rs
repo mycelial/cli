@@ -589,6 +589,66 @@ fn prompt_excel_source(config: &mut Configuration) -> Result<()> {
     config.add_excel_connector_source(display_name, path, sheets, strict);
     Ok(())
 }
+fn prompt_mysql_source(config: &mut Configuration) -> Result<()> {
+    let display_name: String = Input::with_theme(&ColorfulTheme::default())
+        .with_prompt("Display name:")
+        .default("Mysql Source".to_string())
+        .allow_empty(false)
+        .interact_text()
+        .unwrap();
+    let user: String = Input::with_theme(&ColorfulTheme::default())
+        .with_prompt("Mysql username:")
+        .default("user".to_string())
+        .allow_empty(false)
+        .interact_text()
+        .unwrap();
+    let password = Password::with_theme(&ColorfulTheme::default())
+        .with_prompt("Mysql password:")
+        .interact()
+        .unwrap();
+    let address: String = Input::with_theme(&ColorfulTheme::default())
+        .with_prompt("Server address:")
+        .default("localhost".to_string())
+        .allow_empty(false)
+        .interact_text()
+        .unwrap();
+    let port: String = Input::with_theme(&ColorfulTheme::default())
+        .with_prompt("Mysql port:")
+        .default("3306".to_string())
+        .allow_empty(false)
+        .interact_text()
+        .unwrap();
+    let database: String = Input::with_theme(&ColorfulTheme::default())
+        .with_prompt("Database name:")
+        .default("test".to_string())
+        .allow_empty(false)
+        .interact_text()
+        .unwrap();
+    let schema: String = Input::with_theme(&ColorfulTheme::default())
+        .with_prompt("Schema:")
+        .default("public".to_string())
+        .allow_empty(false)
+        .interact_text()
+        .unwrap();
+    let tables: String = Input::with_theme(&ColorfulTheme::default())
+        .with_prompt("Tables:")
+        .default("*".to_string())
+        .allow_empty(false)
+        .interact_text()
+        .unwrap();
+    let poll_interval: i32 = Input::with_theme(&ColorfulTheme::default())
+        .with_prompt("Poll interval (seconds):")
+        .default(5)
+        .allow_empty(false)
+        .interact_text()
+        .unwrap();
+    let mysql_url = format!(
+        "mysql://{}:{}@{}:{}/{}",
+        user, password, address, port, database
+    );
+    config.add_mysql_connector_source(display_name, mysql_url, schema, tables, poll_interval);
+    Ok(())
+}
 
 fn prompt_mysql_destination(config: &mut Configuration) -> Result<()> {
     let display_name: String = Input::with_theme(&ColorfulTheme::default())
@@ -770,6 +830,7 @@ fn source_prompts(config: &mut Configuration, config_file_name: Option<String>) 
     const SQLITE_SOURCE: &str = "Append only SQLite source";
     const EXCEL_SOURCE: &str = "Excel source";
     const POSTGRES_SOURCE: &str = "Append only Postgres source";
+    const MYSQL_SOURCE: &str = "Append only MySQL source";
     const EXIT: &str = "Exit";
     const PROMPT: &str = "What type of source would you like to add?";
     match config_file_name {
@@ -779,6 +840,7 @@ fn source_prompts(config: &mut Configuration, config_file_name: Option<String>) 
                 SQLITE_SOURCE,
                 EXCEL_SOURCE,
                 POSTGRES_SOURCE,
+                MYSQL_SOURCE,
                 EXIT,
             ];
             let source = FuzzySelect::with_theme(&ColorfulTheme::default())
@@ -799,11 +861,16 @@ fn source_prompts(config: &mut Configuration, config_file_name: Option<String>) 
                 2 => {
                     prompt_excel_source(config)?;
                 }
+                // POSTGRES_SOURCE
                 3 => {
                     prompt_postgres_source(config)?;
                 }
-                // EXIT
+                // MYSQL_SOURCE
                 4 => {
+                    prompt_mysql_source(config)?;
+                }
+                // EXIT
+                5 => {
                     match config.save(&config_file_name) {
                         Ok(_) => {
                             println!("{}", format!("{} updated!", config_file_name).green());
@@ -830,6 +897,7 @@ fn source_prompts(config: &mut Configuration, config_file_name: Option<String>) 
                 SQLITE_SOURCE,
                 EXCEL_SOURCE,
                 POSTGRES_SOURCE,
+                MYSQL_SOURCE,
             ];
             let source = FuzzySelect::with_theme(&ColorfulTheme::default())
                 .with_prompt(PROMPT)
@@ -849,8 +917,13 @@ fn source_prompts(config: &mut Configuration, config_file_name: Option<String>) 
                 2 => {
                     prompt_excel_source(config)?;
                 }
+                // POSTGRES_SOURCE
                 3 => {
                     prompt_postgres_source(config)?;
+                }
+                // MYSQL_SOURCE
+                4 => {
+                    prompt_mysql_source(config)?;
                 }
                 _ => {
                     panic!("Unknown source type");
