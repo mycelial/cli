@@ -50,6 +50,312 @@ fn cli_init_config_node_server() -> Result<(), Box<dyn Error>> {
     temp_dir.close()?;
     Ok(())
 }
+#[test]
+fn cli_init_postgres_src() -> Result<(), Box<dyn Error>> {
+    #[derive(Deserialize)]
+    struct Config {
+        sources: Vec<Source>,
+    }
+
+    #[derive(Deserialize)]
+    struct Source {
+        #[serde(rename = "type")]
+        source_type: String,
+        display_name: String,
+        postgres_url: String,
+        schema: String,
+        tables: String,
+        poll_interval: i32,
+    }
+    let temp_dir = assert_fs::TempDir::new()?;
+    std::env::set_current_dir(&temp_dir)?;
+    let mut session = init_session()?;
+    session.send("Add Source")?;
+    session.exp_string("Add Source")?;
+    session.send_line("")?;
+    session.exp_string("What type of source would you like to add?")?;
+    session.send("Append only Postgres source")?;
+    session.exp_string("Append only Postgres source")?;
+    session.send_line("")?;
+    session.exp_string("Display name:")?;
+    session.send_line("Postgres Source")?;
+    session.exp_string("Postgres username:")?;
+    session.send_line("postgres_user")?;
+    session.exp_string("Postgres password:")?;
+    session.send_line("password")?;
+    session.exp_string("Server address:")?;
+    session.send_line("127.0.0.1")?;
+    session.exp_string("Postgres port:")?;
+    session.send_line("1000")?;
+    session.exp_string("Database name:")?;
+    session.send_line("mydb")?;
+    session.exp_string("Schema:")?;
+    session.send_line("public")?;
+    session.exp_string("Tables:")?;
+    session.send_line("table1,table2")?;
+    session.exp_string("Poll interval (seconds):")?;
+    session.send_line("10")?;
+    session.send("Exit")?;
+    session.exp_string("Exit")?;
+    session.send_line("")?;
+    session.exp_eof()?;
+
+    let config_file = temp_dir.child("config.toml");
+    let config_file_contents = std::fs::read_to_string(config_file.path())?;
+    let parsed: Config = toml::from_str(&config_file_contents)?;
+    assert_eq!(parsed.sources.len(), 1);
+    assert_eq!(parsed.sources[0].source_type, "postgres_connector");
+    assert_eq!(parsed.sources[0].display_name, "Postgres Source");
+    assert_eq!(
+        parsed.sources[0].postgres_url,
+        "postgres://postgres_user:password@127.0.0.1:1000/mydb"
+    );
+    assert_eq!(parsed.sources[0].schema, "public");
+    assert_eq!(parsed.sources[0].tables, "table1,table2");
+    assert_eq!(parsed.sources[0].poll_interval, 10);
+
+    temp_dir.close()?;
+    Ok(())
+}
+
+#[test]
+fn cli_init_snowflake_dest() -> Result<(), Box<dyn Error>> {
+    #[derive(Deserialize)]
+    struct Config {
+        destinations: Vec<Destination>,
+    }
+
+    #[derive(Deserialize)]
+    struct Destination {
+        #[serde(rename = "type")]
+        destination_type: String,
+        display_name: String,
+        username: String,
+        password: String,
+        role: String,
+        account_identifier: String,
+        warehouse: String,
+        database: String,
+        schema: String,
+    }
+    let temp_dir = assert_fs::TempDir::new()?;
+    std::env::set_current_dir(&temp_dir)?;
+    let mut session = init_session()?;
+    session.send("Add Destination")?;
+    session.exp_string("Add Destination")?;
+    session.send_line("")?;
+    session.exp_string("What type of destination would you like to add?")?;
+    session.send("Snowflake destination")?;
+    session.exp_string("Snowflake destination")?;
+    session.send_line("")?;
+    session.exp_string("Display name:")?;
+    session.send_line("Snowflake Destination")?;
+    session.exp_string("Snowflake username:")?;
+    session.send_line("username")?;
+    session.exp_string("Snowflake password:")?;
+    session.send_line("secret")?;
+    session.exp_string("Snowflake role:")?;
+    session.send_line("admin")?;
+    session.exp_string("Snowflake account name:")?;
+    session.send_line("myaccount")?;
+    session.exp_string("Snowflake organization name:")?;
+    session.send_line("myorg")?;
+    session.exp_string("Snowflake warehouse:")?;
+    session.send_line("whse")?;
+    session.exp_string("Database name:")?;
+    session.send_line("mydb")?;
+    session.exp_string("Schema:")?;
+    session.send_line("myschema")?;
+
+    session.exp_string("What would you like to do?")?;
+    session.send("Exit")?;
+    session.exp_string("Exit")?;
+    session.send_line("")?;
+    session.exp_eof()?;
+
+    let config_file = temp_dir.child("config.toml");
+    let config_file_contents = std::fs::read_to_string(config_file.path())?;
+    let parsed: Config = toml::from_str(&config_file_contents)?;
+    assert_eq!(parsed.destinations.len(), 1);
+    assert_eq!(parsed.destinations[0].destination_type, "snowflake");
+    assert_eq!(parsed.destinations[0].display_name, "Snowflake Destination");
+    assert_eq!(parsed.destinations[0].username, "username");
+    assert_eq!(parsed.destinations[0].password, "secret");
+    assert_eq!(parsed.destinations[0].role, "admin");
+    assert_eq!(parsed.destinations[0].account_identifier, "myorg-myaccount");
+    assert_eq!(parsed.destinations[0].warehouse, "whse");
+    assert_eq!(parsed.destinations[0].database, "mydb");
+    assert_eq!(parsed.destinations[0].schema, "myschema");
+
+    temp_dir.close()?;
+    Ok(())
+}
+
+#[test]
+fn cli_init_file_src() -> Result<(), Box<dyn Error>> {
+    #[derive(Deserialize)]
+    struct Config {
+        sources: Vec<Source>,
+    }
+
+    #[derive(Deserialize)]
+    struct Source {
+        #[serde(rename = "type")]
+        source_type: String,
+        display_name: String,
+        path: String,
+    }
+    let temp_dir = assert_fs::TempDir::new()?;
+    std::env::set_current_dir(&temp_dir)?;
+    let mut session = init_session()?;
+    session.send("Add Source")?;
+    session.exp_string("Add Source")?;
+    session.send_line("")?;
+    session.exp_string("What type of source would you like to add?")?;
+    session.send("File source")?;
+    session.exp_string("File source")?;
+    session.send_line("")?;
+    session.exp_string("Display name:")?;
+    session.send_line("my file source")?;
+    session.exp_string("Path:")?;
+    session.send_line("my_file.txt")?;
+    session.send("Exit")?;
+    session.exp_string("Exit")?;
+    session.send_line("")?;
+    session.exp_eof()?;
+
+    let config_file = temp_dir.child("config.toml");
+    let config_file_contents = std::fs::read_to_string(config_file.path())?;
+    let parsed: Config = toml::from_str(&config_file_contents)?;
+    assert_eq!(parsed.sources.len(), 1);
+    assert_eq!(parsed.sources[0].source_type, "file");
+    assert_eq!(parsed.sources[0].display_name, "my file source");
+    assert_eq!(parsed.sources[0].path, "my_file.txt");
+
+    temp_dir.close()?;
+    Ok(())
+}
+
+#[test]
+fn cli_init_mysql_src() -> Result<(), Box<dyn Error>> {
+    #[derive(Deserialize)]
+    struct Config {
+        sources: Vec<Source>,
+    }
+
+    #[derive(Deserialize)]
+    struct Source {
+        #[serde(rename = "type")]
+        source_type: String,
+        display_name: String,
+        mysql_url: String,
+        schema: String,
+        tables: String,
+        poll_interval: i32,
+    }
+    let temp_dir = assert_fs::TempDir::new()?;
+    std::env::set_current_dir(&temp_dir)?;
+    let mut session = init_session()?;
+    session.send("Add Source")?;
+    session.exp_string("Add Source")?;
+    session.send_line("")?;
+    session.exp_string("What type of source would you like to add?")?;
+    session.send("Append only MySQL source")?;
+    session.exp_string("Append only MySQL source")?;
+    session.send_line("")?;
+    session.exp_string("Display name:")?;
+    session.send_line("Mysql Source")?;
+    session.exp_string("Mysql username:")?;
+    session.send_line("mysql_user")?;
+    session.exp_string("Mysql password:")?;
+    session.send_line("password")?;
+    session.exp_string("Server address:")?;
+    session.send_line("127.0.0.1")?;
+    session.exp_string("Mysql port:")?;
+    session.send_line("1000")?;
+    session.exp_string("Database name:")?;
+    session.send_line("mydb")?;
+    session.exp_string("Schema:")?;
+    session.send_line("public")?;
+    session.exp_string("Tables:")?;
+    session.send_line("table1,table2")?;
+    session.exp_string("Poll interval (seconds):")?;
+    session.send_line("10")?;
+    session.send("Exit")?;
+    session.exp_string("Exit")?;
+    session.send_line("")?;
+    session.exp_eof()?;
+
+    let config_file = temp_dir.child("config.toml");
+    let config_file_contents = std::fs::read_to_string(config_file.path())?;
+    let parsed: Config = toml::from_str(&config_file_contents)?;
+    assert_eq!(parsed.sources.len(), 1);
+    assert_eq!(parsed.sources[0].source_type, "mysql_connector");
+    assert_eq!(parsed.sources[0].display_name, "Mysql Source");
+    assert_eq!(
+        parsed.sources[0].mysql_url,
+        "mysql://mysql_user:password@127.0.0.1:1000/mydb"
+    );
+    assert_eq!(parsed.sources[0].schema, "public");
+    assert_eq!(parsed.sources[0].tables, "table1,table2");
+    assert_eq!(parsed.sources[0].poll_interval, 10);
+
+    temp_dir.close()?;
+    Ok(())
+}
+
+#[test]
+fn cli_init_excel_src() -> Result<(), Box<dyn Error>> {
+    #[derive(Deserialize)]
+    struct Config {
+        sources: Vec<Source>,
+    }
+
+    #[derive(Deserialize)]
+    struct Source {
+        #[serde(rename = "type")]
+        source_type: String,
+        display_name: String,
+        path: String,
+        sheets: String,
+        strict: bool,
+    }
+    let temp_dir = assert_fs::TempDir::new()?;
+    std::env::set_current_dir(&temp_dir)?;
+    let mut session = init_session()?;
+    session.send("Add Source")?;
+    session.exp_string("Add Source")?;
+    session.send_line("")?;
+    session.exp_string("What type of source would you like to add?")?;
+    session.send("Excel source")?;
+    session.exp_string("Excel source")?;
+    session.send_line("")?;
+    session.exp_string("Display name:")?;
+    session.send_line("Excel")?;
+    session.exp_string("Excel Path:")?;
+    session.send_line("some_file.xlsx")?;
+    session.exp_string("Sheets:")?;
+    session.send_line("*")?;
+    session.exp_string("Strict:")?;
+    session.send_line("y")?;
+    session.send("Exit")?;
+    session.exp_string("Exit")?;
+    session.send_line("")?;
+    session.exp_eof()?;
+
+    let config_file = temp_dir.child("config.toml");
+    let config_file_contents = std::fs::read_to_string(config_file.path())?;
+    let parsed: Config = toml::from_str(&config_file_contents)?;
+    assert_eq!(parsed.sources.len(), 1);
+    assert_eq!(parsed.sources[0].source_type, "excel_connector");
+    assert_eq!(parsed.sources[0].display_name, "Excel");
+    assert!(parsed.sources[0].path.ends_with("some_file.xlsx"));
+    assert_eq!(parsed.sources[0].sheets, "*");
+    assert_eq!(parsed.sources[0].strict, true);
+
+    temp_dir.close()?;
+    Ok(())
+}
 
 #[test]
 fn cli_init_mycelite_src() -> Result<(), Box<dyn Error>> {

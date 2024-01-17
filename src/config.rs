@@ -112,6 +112,72 @@ impl Config {
             }
         }
     }
+    pub fn add_excel_connector_source(
+        &mut self,
+        display_name: String,
+        path: String,
+        sheets: String,
+        strict: bool,
+    ) {
+        match &mut self.sources {
+            Some(sources) => sources.push(Source::excel_connector {
+                display_name,
+                path,
+                sheets,
+                strict,
+            }),
+            None => {
+                self.sources = Some(vec![Source::excel_connector {
+                    display_name,
+                    path,
+                    sheets,
+                    strict,
+                }])
+            }
+        }
+    }
+    pub fn add_file_source(&mut self, display_name: String, path: String) {
+        match &mut self.sources {
+            Some(sources) => sources.push(Source::file { display_name, path }),
+            None => self.sources = Some(vec![Source::file { display_name, path }]),
+        }
+    }
+    pub fn add_snowflake_connector_destination(
+        &mut self,
+        display_name: String,
+        username: String,
+        password: String,
+        role: String,
+        account_identifier: String,
+        warehouse: String,
+        database: String,
+        schema: String,
+    ) {
+        match &mut self.destinations {
+            Some(destinations) => destinations.push(Destination::snowflake {
+                display_name,
+                username,
+                password,
+                role,
+                account_identifier,
+                warehouse,
+                database,
+                schema,
+            }),
+            None => {
+                self.destinations = Some(vec![Destination::snowflake {
+                    display_name,
+                    username,
+                    password,
+                    role,
+                    account_identifier,
+                    warehouse,
+                    database,
+                    schema,
+                }])
+            }
+        }
+    }
     pub fn save<T: AsRef<str>>(&self, path: T) -> Result<(), Box<dyn std::error::Error>> {
         let path = path.as_ref();
         let toml = toml::to_string(&self)?;
@@ -127,6 +193,62 @@ impl Config {
         match &self.node {
             Some(node) => Some(node.storage_path.clone()),
             None => None,
+        }
+    }
+
+    pub(crate) fn add_postgres_connector_source(
+        &mut self,
+        display_name: String,
+        postgres_url: String,
+        schema: String,
+        tables: String,
+        poll_interval: i32,
+    ) {
+        match &mut self.sources {
+            Some(sources) => sources.push(Source::postgres_connector {
+                display_name,
+                postgres_url,
+                schema,
+                tables,
+                poll_interval,
+            }),
+            None => {
+                self.sources = Some(vec![Source::postgres_connector {
+                    display_name,
+                    postgres_url,
+                    schema,
+                    tables,
+                    poll_interval,
+                }])
+            }
+        }
+    }
+
+    pub(crate) fn add_mysql_connector_source(
+        &mut self,
+        display_name: String,
+        mysql_url: String,
+        schema: String,
+        tables: String,
+        poll_interval: i32,
+    ) {
+        match &mut self.sources {
+            Some(sources) => sources.push(Source::mysql_connector {
+                display_name,
+                mysql_url,
+                schema,
+                tables,
+                poll_interval,
+            }),
+            None => {
+                self.sources = Some(vec![Source::mysql_connector {
+                    display_name,
+                    mysql_url,
+                    schema,
+                    tables,
+                    poll_interval,
+                }])
+            }
         }
     }
 }
@@ -159,6 +281,7 @@ enum Source {
     excel_connector {
         display_name: String,
         path: String,
+        sheets: String,
         strict: bool,
     },
     sqlite_physical_replication {
@@ -171,6 +294,24 @@ enum Source {
         display_name: String,
     },
     sqlite_connector {
+        display_name: String,
+        path: String,
+    },
+    postgres_connector {
+        display_name: String,
+        postgres_url: String,
+        schema: String,
+        tables: String,
+        poll_interval: i32,
+    },
+    mysql_connector {
+        display_name: String,
+        mysql_url: String,
+        schema: String,
+        tables: String,
+        poll_interval: i32,
+    },
+    file {
         display_name: String,
         path: String,
     },
@@ -204,5 +345,15 @@ enum Destination {
         display_name: String,
         brokers: String,
         topic: String,
+    },
+    snowflake {
+        display_name: String,
+        username: String,
+        password: String,
+        role: String,
+        account_identifier: String,
+        warehouse: String,
+        database: String,
+        schema: String,
     },
 }
