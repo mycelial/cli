@@ -889,7 +889,7 @@ dependencies = [
 
 [[package]]
 name = "mycelial"
-version = "0.5.1"
+version = "0.6.0"
 dependencies = [
  "assert_cmd",
  "assert_fs",
