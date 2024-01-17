@@ -18,7 +18,7 @@ jobs:
     runs-on: ${{ matrix.os }}
 
     env:
-      RUSTFLAGS: "-C target-feature=-crt-static"
+      RUSTFLAGS: '-C target-feature=-crt-static'
       CARGO_TARGET_ARM_UNKNOWN_LINUX_GNUEABIHF_LINKER: arm-linux-gnueabihf-gcc
       CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_LINKER: aarch64-linux-gnu-gcc
       OPENSSL_VERSION: 1.1.1w
@@ -49,7 +49,7 @@ jobs:
 
     steps:
       - name: checkout
-        uses: actions/checkout@v3          
+        uses: actions/checkout@v3
 
       - name: install packages (linux)
         if: matrix.build == 'linux'
@@ -62,32 +62,33 @@ jobs:
         if: matrix.build == 'macos'
         run: |
           brew install openssl
-      
-      - name: build openssl 
-        if: matrix.build == 'linux' && matrix.target != 'x86_64-unknown-linux-gnu'
+
+      - name: build openssl
+        if:
+          matrix.build == 'linux' && matrix.target != 'x86_64-unknown-linux-gnu'
         run: |
-            export CC_PREFIX=`echo ${{ matrix.target }} | sed 's/unknown-//g'`
-            mkdir -p $OPENSSL_PREFIX/$OPENSSL_VERSION/
-            cd ${OPENSSL_PREFIX}
-            wget -nc https://www.openssl.org/source/openssl-$OPENSSL_VERSION.tar.gz
-            tar xvf openssl-$OPENSSL_VERSION.tar.gz
-            cd openssl-${OPENSSL_VERSION}
-            export CC="$CC_PREFIX-gcc"
-            exportCXX="$CC_PREFIX-g++"
-            export AS="$CC_PREFIX-as"
-            export AR="$CC_PREFIX-ar"
-            export NM="$CC_PREFIX-nm"
-            export RANLIB="$CC_PREFIX-ranlib"
-            export LD="$CC_PREFIX-ld"
-            export STRIP="$CC_PREFIX-strip"
-            ./Configure linux-generic32 shared \
-               --prefix=$OPENSSL_PREFIX/$OPENSSL_VERSION/${{ matrix.target }} \
-               --openssldir=$OPENSSL_PREFIX/$OPENSSL_VERSION/${{ matrix.target }}
-            make
-            make install
-            echo "OPENSSL_INCLUDE_DIR=$OPENSSL_PREFIX/$OPENSSL_VERSION/${{matrix.target}}/include" >> $GITHUB_ENV
-            echo "OPENSSL_LIB_DIR=$OPENSSL_PREFIX/$OPENSSL_VERSION/${{matrix.target}}/lib" >> $GITHUB_ENV
-            echo "OPENSSL_STATIC=1" >> $GITHUB_ENV
+          export CC_PREFIX=`echo ${{ matrix.target }} | sed 's/unknown-//g'`
+          mkdir -p $OPENSSL_PREFIX/$OPENSSL_VERSION/
+          cd ${OPENSSL_PREFIX}
+          wget -nc https://www.openssl.org/source/openssl-$OPENSSL_VERSION.tar.gz
+          tar xvf openssl-$OPENSSL_VERSION.tar.gz
+          cd openssl-${OPENSSL_VERSION}
+          export CC="$CC_PREFIX-gcc"
+          exportCXX="$CC_PREFIX-g++"
+          export AS="$CC_PREFIX-as"
+          export AR="$CC_PREFIX-ar"
+          export NM="$CC_PREFIX-nm"
+          export RANLIB="$CC_PREFIX-ranlib"
+          export LD="$CC_PREFIX-ld"
+          export STRIP="$CC_PREFIX-strip"
+          ./Configure linux-generic32 shared \
+             --prefix=$OPENSSL_PREFIX/$OPENSSL_VERSION/${{ matrix.target }} \
+             --openssldir=$OPENSSL_PREFIX/$OPENSSL_VERSION/${{ matrix.target }}
+          make
+          make install
+          echo "OPENSSL_INCLUDE_DIR=$OPENSSL_PREFIX/$OPENSSL_VERSION/${{matrix.target}}/include" >> $GITHUB_ENV
+          echo "OPENSSL_LIB_DIR=$OPENSSL_PREFIX/$OPENSSL_VERSION/${{matrix.target}}/lib" >> $GITHUB_ENV
+          echo "OPENSSL_STATIC=1" >> $GITHUB_ENV
 
       - name: setup rust
         uses: dtolnay/rust-toolchain@master
@@ -128,7 +129,7 @@ jobs:
           package: ${{ env.APP_NAME }}
           package_root: .debpkg
           maintainer: ${{ env.MAINTAINER }}
-          version: ${{ github.ref }}
+          version: 'v'
           arch: 'armhf'
           desc: '${{ env.DESC }}'
 
@@ -139,7 +140,7 @@ jobs:
           package: ${{ env.APP_NAME }}
           package_root: .debpkg
           maintainer: ${{ env.MAINTAINER }}
-          version: ${{ github.ref }}
+          version: 'v'
           arch: 'arm64'
           desc: '${{ env.DESC }}'
 
@@ -150,7 +151,7 @@ jobs:
           package: ${{ env.APP_NAME }}
           package_root: .debpkg
           maintainer: ${{ env.MAINTAINER }}
-          version: ${{ github.ref }}
+          version: 'v'
           arch: 'amd64'
           desc: '${{ env.DESC }}'
 
@@ -161,7 +162,7 @@ jobs:
           ls
           fpm \
             -s dir -t rpm \
-            -p mycelial-${GITHUB_REF#refs/*/}-1.x86_64.rpm \
+            -p mycelial-v-1.x86_64.rpm \
             --name mycelial \
             --license apache2 \
             --version ${GITHUB_REF#refs/*/} \
@@ -178,7 +179,7 @@ jobs:
           ls
           fpm \
             -s dir -t rpm \
-            -p mycelial-${GITHUB_REF#refs/*/}-1.arm64.rpm \
+            -p mycelial-v-1.arm64.rpm \
             --name mycelial \
             --license apache2 \
             --version ${GITHUB_REF#refs/*/} \
@@ -195,7 +196,7 @@ jobs:
           ls
           fpm \
             -s dir -t rpm \
-            -p mycelial-${GITHUB_REF#refs/*/}-1.armhf.rpm \
+            -p mycelial-v-1.armhf.rpm \
             --name mycelial \
             --license apache2 \
             --version ${GITHUB_REF#refs/*/} \
@@ -209,7 +210,7 @@ jobs:
         if: matrix.build == 'macos'
         uses: ncipollo/release-action@v1
         with:
-          artifacts: "${{ env.MYCELIAL_NAME }}"
+          artifacts: '${{ env.MYCELIAL_NAME }}'
           artifactErrorsFailBuild: true
           allowUpdates: true
 
@@ -217,6 +218,6 @@ jobs:
         if: matrix.build == 'linux'
         uses: ncipollo/release-action@v1
         with:
-          artifacts: "${{ env.MYCELIAL_NAME }}, ./*.deb, ./*.rpm"
+          artifacts: '${{ env.MYCELIAL_NAME }}, ./*.deb, ./*.rpm'
           artifactErrorsFailBuild: true
           allowUpdates: true
