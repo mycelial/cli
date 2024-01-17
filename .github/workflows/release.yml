@@ -122,40 +122,7 @@ jobs:
           cp ./target/${{ matrix.target }}/release/mycelial .debpkg/usr/bin/ 
           ls .debpkg/usr/bin/
 
-      - name: build debian package arm32
-        if: matrix.target == 'arm-unknown-linux-gnueabihf'
-        uses: jiro4989/build-deb-action@v3
-        with:
-          package: ${{ env.APP_NAME }}
-          package_root: .debpkg
-          maintainer: ${{ env.MAINTAINER }}
-          version: 'v'
-          arch: 'armhf'
-          desc: '${{ env.DESC }}'
-
-      - name: build debian package arm64
-        if: matrix.target == 'aarch64-unknown-linux-gnu'
-        uses: jiro4989/build-deb-action@v3
-        with:
-          package: ${{ env.APP_NAME }}
-          package_root: .debpkg
-          maintainer: ${{ env.MAINTAINER }}
-          version: 'v'
-          arch: 'arm64'
-          desc: '${{ env.DESC }}'
-
-      - name: build debian package x86_64
-        if: matrix.target == 'x86_64-unknown-linux-gnu'
-        uses: jiro4989/build-deb-action@v3
-        with:
-          package: ${{ env.APP_NAME }}
-          package_root: .debpkg
-          maintainer: ${{ env.MAINTAINER }}
-          version: 'v'
-          arch: 'amd64'
-          desc: '${{ env.DESC }}'
-
-      - name: build rpm x86_64
+      - name: build rpm and deb x86_64
         if: matrix.target == 'x86_64-unknown-linux-gnu'
         run: |
           cp ./target/${{ matrix.target }}/release/mycelial ./
@@ -171,8 +138,19 @@ jobs:
             --url "https://mycelial.com" \
             --maintainer "James Moore <james@mycelial.com>" \
             mycelial=/usr/bin/mycelial
+          fpm \
+            -s dir -t deb \
+            -p mycelial-v-1.x86_64.deb \
+            --name mycelial \
+            --license apache2 \
+            --version ${GITHUB_REF#refs/*/} \
+            --architecture x86_64 \
+            --description "Mycelial CLI" \
+            --url "https://mycelial.com" \
+            --maintainer "James Moore <james@mycelial.com>" \
+            mycelial=/usr/bin/mycelial
 
-      - name: build rpm arm64
+      - name: build rpm and deb arm64
         if: matrix.target == 'aarch64-unknown-linux-gnu'
         run: |
           cp ./target/${{ matrix.target }}/release/mycelial ./
@@ -188,8 +166,19 @@ jobs:
             --url "https://mycelial.com" \
             --maintainer "James Moore <james@mycelial.com>" \
             mycelial=/usr/bin/mycelial
+          fpm \
+            -s dir -t deb \
+            -p mycelial-v-1.arm64.deb \
+            --name mycelial \
+            --license apache2 \
+            --version ${GITHUB_REF#refs/*/} \
+            --architecture arm64 \
+            --description "Mycelial CLI" \
+            --url "https://mycelial.com" \
+            --maintainer "James Moore <james@mycelial.com>" \
+            mycelial=/usr/bin/mycelial
 
-      - name: build rpm arm
+      - name: build rpm and deb arm
         if: matrix.target == 'arm-unknown-linux-gnueabihf'
         run: |
           cp ./target/${{ matrix.target }}/release/mycelial ./
@@ -197,6 +186,17 @@ jobs:
           fpm \
             -s dir -t rpm \
             -p mycelial-v-1.armhf.rpm \
+            --name mycelial \
+            --license apache2 \
+            --version ${GITHUB_REF#refs/*/} \
+            --architecture armhf \
+            --description "Mycelial CLI" \
+            --url "https://mycelial.com" \
+            --maintainer "James Moore <james@mycelial.com>" \
+            mycelial=/usr/bin/mycelial
+          fpm \
+            -s dir -t deb \
+            -p mycelial-v-1.armhf.deb \
             --name mycelial \
             --license apache2 \
             --version ${GITHUB_REF#refs/*/} \
