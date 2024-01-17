@@ -119,6 +119,79 @@ fn cli_init_postgres_src() -> Result<(), Box<dyn Error>> {
 }
 
 #[test]
+fn cli_init_snowflake_dest() -> Result<(), Box<dyn Error>> {
+    #[derive(Deserialize)]
+    struct Config {
+        destinations: Vec<Destination>,
+    }
+
+    #[derive(Deserialize)]
+    struct Destination {
+        #[serde(rename = "type")]
+        destination_type: String,
+        display_name: String,
+        username: String,
+        password: String,
+        role: String,
+        account_identifier: String,
+        warehouse: String,
+        database: String,
+        schema: String,
+    }
+    let temp_dir = assert_fs::TempDir::new()?;
+    std::env::set_current_dir(&temp_dir)?;
+    let mut session = init_session()?;
+    session.send("Add Destination")?;
+    session.exp_string("Add Destination")?;
+    session.send_line("")?;
+    session.exp_string("What type of destination would you like to add?")?;
+    session.send("Snowflake destination")?;
+    session.exp_string("Snowflake destination")?;
+    session.send_line("")?;
+    session.exp_string("Display name:")?;
+    session.send_line("Snowflake Destination")?;
+    session.exp_string("Snowflake username:")?;
+    session.send_line("username")?;
+    session.exp_string("Snowflake password:")?;
+    session.send_line("secret")?;
+    session.exp_string("Snowflake role:")?;
+    session.send_line("admin")?;
+    session.exp_string("Snowflake account name:")?;
+    session.send_line("myaccount")?;
+    session.exp_string("Snowflake organization name:")?;
+    session.send_line("myorg")?;
+    session.exp_string("Snowflake warehouse:")?;
+    session.send_line("whse")?;
+    session.exp_string("Database name:")?;
+    session.send_line("mydb")?;
+    session.exp_string("Schema:")?;
+    session.send_line("myschema")?;
+
+    session.exp_string("What would you like to do?")?;
+    session.send("Exit")?;
+    session.exp_string("Exit")?;
+    session.send_line("")?;
+    session.exp_eof()?;
+
+    let config_file = temp_dir.child("config.toml");
+    let config_file_contents = std::fs::read_to_string(config_file.path())?;
+    let parsed: Config = toml::from_str(&config_file_contents)?;
+    assert_eq!(parsed.destinations.len(), 1);
+    assert_eq!(parsed.destinations[0].destination_type, "snowflake");
+    assert_eq!(parsed.destinations[0].display_name, "Snowflake Destination");
+    assert_eq!(parsed.destinations[0].username, "username");
+    assert_eq!(parsed.destinations[0].password, "secret");
+    assert_eq!(parsed.destinations[0].role, "admin");
+    assert_eq!(parsed.destinations[0].account_identifier, "myorg-myaccount");
+    assert_eq!(parsed.destinations[0].warehouse, "whse");
+    assert_eq!(parsed.destinations[0].database, "mydb");
+    assert_eq!(parsed.destinations[0].schema, "myschema");
+
+    temp_dir.close()?;
+    Ok(())
+}
+
+#[test]
 fn cli_init_file_src() -> Result<(), Box<dyn Error>> {
     #[derive(Deserialize)]
     struct Config {

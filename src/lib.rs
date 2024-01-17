@@ -708,6 +708,67 @@ fn prompt_file_source(config: &mut Configuration) -> Result<()> {
     config.add_file_source(display_name, path);
     Ok(())
 }
+
+fn prompt_snowflake_destination(config: &mut Configuration) -> Result<()> {
+    let display_name: String = Input::with_theme(&ColorfulTheme::default())
+        .with_prompt("Display name:")
+        .default("Snowflake Destination".to_string())
+        .allow_empty(false)
+        .interact_text()
+        .unwrap();
+    let username: String = Input::with_theme(&ColorfulTheme::default())
+        .with_prompt("Snowflake username:")
+        .allow_empty(false)
+        .interact_text()
+        .unwrap();
+    let password = Password::with_theme(&ColorfulTheme::default())
+        .with_prompt("Snowflake password:")
+        .interact()
+        .unwrap();
+    let role: String = Input::with_theme(&ColorfulTheme::default())
+        .with_prompt("Snowflake role:")
+        .allow_empty(false)
+        .interact_text()
+        .unwrap();
+    let account_name: String = Input::with_theme(&ColorfulTheme::default())
+        .with_prompt("Snowflake account name:")
+        .allow_empty(false)
+        .interact_text()
+        .unwrap();
+    let organization_name: String = Input::with_theme(&ColorfulTheme::default())
+        .with_prompt("Snowflake organization name:")
+        .allow_empty(false)
+        .interact_text()
+        .unwrap();
+    let warehouse: String = Input::with_theme(&ColorfulTheme::default())
+        .with_prompt("Snowflake warehouse:")
+        .allow_empty(false)
+        .interact_text()
+        .unwrap();
+    let database: String = Input::with_theme(&ColorfulTheme::default())
+        .with_prompt("Database name:")
+        .allow_empty(false)
+        .interact_text()
+        .unwrap();
+    let schema: String = Input::with_theme(&ColorfulTheme::default())
+        .with_prompt("Schema:")
+        .allow_empty(false)
+        .interact_text()
+        .unwrap();
+    let account_identifier = format!("{}-{}", organization_name, account_name);
+    config.add_snowflake_connector_destination(
+        display_name,
+        username,
+        password,
+        role,
+        account_identifier,
+        warehouse,
+        database,
+        schema,
+    );
+    Ok(())
+}
+
 pub enum ConfigAction {
     Create,
     Append,
@@ -965,6 +1026,7 @@ fn destination_prompts(config: &mut Configuration, config_file_name: Option<Stri
     const POSTGRES_DESTINATION: &str = "Append only Postgres destination";
     const MYSQL_DESTINATION: &str = "Append only MySQL destination";
     const KAFKA_DESTINATION: &str = "Kafka destination";
+    const SNOWFLAKE_DESTINATION: &str = "Snowflake destination";
     const EXIT: &str = "Exit";
     const PROMPT: &str = "What type of destination would you like to add?";
     match config_file_name {
@@ -975,6 +1037,7 @@ fn destination_prompts(config: &mut Configuration, config_file_name: Option<Stri
                 POSTGRES_DESTINATION,
                 MYSQL_DESTINATION,
                 KAFKA_DESTINATION,
+                SNOWFLAKE_DESTINATION,
                 EXIT,
             ];
             let destination = FuzzySelect::with_theme(&ColorfulTheme::default())
@@ -1003,8 +1066,11 @@ fn destination_prompts(config: &mut Configuration, config_file_name: Option<Stri
                 4 => {
                     prompt_kafka_destination(config)?;
                 }
-                // EXIT
                 5 => {
+                    prompt_snowflake_destination(config)?;
+                }
+                // EXIT
+                6 => {
                     match config.save(&config_file_name) {
                         Ok(_) => {
                             println!("{}", "config file updated!".green());
@@ -1032,6 +1098,7 @@ fn destination_prompts(config: &mut Configuration, config_file_name: Option<Stri
                 POSTGRES_DESTINATION,
                 MYSQL_DESTINATION,
                 KAFKA_DESTINATION,
+                SNOWFLAKE_DESTINATION,
             ];
             let destination = FuzzySelect::with_theme(&ColorfulTheme::default())
                 .with_prompt(PROMPT)
@@ -1058,6 +1125,10 @@ fn destination_prompts(config: &mut Configuration, config_file_name: Option<Stri
                 // KAFKA_DESTINATION
                 4 => {
                     prompt_kafka_destination(config)?;
+                }
+                // SNOWFLAKE_DESTINATION
+                5 => {
+                    prompt_snowflake_destination(config)?;
                 }
                 _ => {
                     panic!("Unknown destination type");

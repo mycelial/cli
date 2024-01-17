@@ -142,6 +142,42 @@ impl Config {
             None => self.sources = Some(vec![Source::file { display_name, path }]),
         }
     }
+    pub fn add_snowflake_connector_destination(
+        &mut self,
+        display_name: String,
+        username: String,
+        password: String,
+        role: String,
+        account_identifier: String,
+        warehouse: String,
+        database: String,
+        schema: String,
+    ) {
+        match &mut self.destinations {
+            Some(destinations) => destinations.push(Destination::snowflake {
+                display_name,
+                username,
+                password,
+                role,
+                account_identifier,
+                warehouse,
+                database,
+                schema,
+            }),
+            None => {
+                self.destinations = Some(vec![Destination::snowflake {
+                    display_name,
+                    username,
+                    password,
+                    role,
+                    account_identifier,
+                    warehouse,
+                    database,
+                    schema,
+                }])
+            }
+        }
+    }
     pub fn save<T: AsRef<str>>(&self, path: T) -> Result<(), Box<dyn std::error::Error>> {
         let path = path.as_ref();
         let toml = toml::to_string(&self)?;
@@ -309,5 +345,15 @@ enum Destination {
         display_name: String,
         brokers: String,
         topic: String,
+    },
+    snowflake {
+        display_name: String,
+        username: String,
+        password: String,
+        role: String,
+        account_identifier: String,
+        warehouse: String,
+        database: String,
+        schema: String,
     },
 }
