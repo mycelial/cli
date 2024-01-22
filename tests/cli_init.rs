@@ -62,7 +62,7 @@ fn cli_init_postgres_src() -> Result<(), Box<dyn Error>> {
         #[serde(rename = "type")]
         source_type: String,
         display_name: String,
-        postgres_url: String,
+        url: String,
         schema: String,
         tables: String,
         poll_interval: i32,
@@ -107,7 +107,7 @@ fn cli_init_postgres_src() -> Result<(), Box<dyn Error>> {
     assert_eq!(parsed.sources[0].source_type, "postgres_connector");
     assert_eq!(parsed.sources[0].display_name, "Postgres Source");
     assert_eq!(
-        parsed.sources[0].postgres_url,
+        parsed.sources[0].url,
         "postgres://postgres_user:password@127.0.0.1:1000/mydb"
     );
     assert_eq!(parsed.sources[0].schema, "public");
@@ -248,7 +248,7 @@ fn cli_init_mysql_src() -> Result<(), Box<dyn Error>> {
         #[serde(rename = "type")]
         source_type: String,
         display_name: String,
-        mysql_url: String,
+        url: String,
         schema: String,
         tables: String,
         poll_interval: i32,
@@ -293,7 +293,7 @@ fn cli_init_mysql_src() -> Result<(), Box<dyn Error>> {
     assert_eq!(parsed.sources[0].source_type, "mysql_connector");
     assert_eq!(parsed.sources[0].display_name, "Mysql Source");
     assert_eq!(
-        parsed.sources[0].mysql_url,
+        parsed.sources[0].url,
         "mysql://mysql_user:password@127.0.0.1:1000/mydb"
     );
     assert_eq!(parsed.sources[0].schema, "public");
