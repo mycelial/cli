@@ -592,18 +592,18 @@ fn prompt_excel_source(config: &mut Configuration) -> Result<()> {
 fn prompt_mysql_source(config: &mut Configuration) -> Result<()> {
     let display_name: String = Input::with_theme(&ColorfulTheme::default())
         .with_prompt("Display name:")
-        .default("Mysql Source".to_string())
+        .default("MySQL Source".to_string())
         .allow_empty(false)
         .interact_text()
         .unwrap();
     let user: String = Input::with_theme(&ColorfulTheme::default())
-        .with_prompt("Mysql username:")
+        .with_prompt("MySQL username:")
         .default("user".to_string())
         .allow_empty(false)
         .interact_text()
         .unwrap();
     let password = Password::with_theme(&ColorfulTheme::default())
-        .with_prompt("Mysql password:")
+        .with_prompt("MySQL password:")
         .interact()
         .unwrap();
     let address: String = Input::with_theme(&ColorfulTheme::default())
@@ -613,7 +613,7 @@ fn prompt_mysql_source(config: &mut Configuration) -> Result<()> {
         .interact_text()
         .unwrap();
     let port: String = Input::with_theme(&ColorfulTheme::default())
-        .with_prompt("Mysql port:")
+        .with_prompt("MySQL port:")
         .default("3306".to_string())
         .allow_empty(false)
         .interact_text()
@@ -653,18 +653,18 @@ fn prompt_mysql_source(config: &mut Configuration) -> Result<()> {
 fn prompt_mysql_destination(config: &mut Configuration) -> Result<()> {
     let display_name: String = Input::with_theme(&ColorfulTheme::default())
         .with_prompt("Display name:")
-        .default("Mysql Append Only Destination".to_string())
+        .default("MySQL Append Only Destination".to_string())
         .allow_empty(false)
         .interact_text()
         .unwrap();
     let user: String = Input::with_theme(&ColorfulTheme::default())
-        .with_prompt("Mysql username:")
+        .with_prompt("MySQL username:")
         .default("user".to_string())
         .allow_empty(false)
         .interact_text()
         .unwrap();
     let password = Password::with_theme(&ColorfulTheme::default())
-        .with_prompt("Mysql password:")
+        .with_prompt("MySQL password:")
         .interact()
         .unwrap();
     let address: String = Input::with_theme(&ColorfulTheme::default())
@@ -674,7 +674,7 @@ fn prompt_mysql_destination(config: &mut Configuration) -> Result<()> {
         .interact_text()
         .unwrap();
     let port: String = Input::with_theme(&ColorfulTheme::default())
-        .with_prompt("Mysql port:")
+        .with_prompt("MySQL port:")
         .default("3306".to_string())
         .allow_empty(false)
         .interact_text()
@@ -706,6 +706,23 @@ fn prompt_file_source(config: &mut Configuration) -> Result<()> {
         .interact_text()
         .unwrap();
     config.add_file_source(display_name, path);
+    Ok(())
+}
+
+fn prompt_file_destination(config: &mut Configuration) -> Result<()> {
+    let display_name: String = Input::with_theme(&ColorfulTheme::default())
+        .with_prompt("Display name:")
+        .default("file destination".to_string())
+        .allow_empty(false)
+        .interact_text()
+        .unwrap();
+    let path: String = Input::with_theme(&ColorfulTheme::default())
+        .with_prompt("Path:")
+        .default("file.txt".to_string())
+        .allow_empty(false)
+        .interact_text()
+        .unwrap();
+    config.add_file_destination(display_name, path);
     Ok(())
 }
 
@@ -1027,6 +1044,7 @@ fn destination_prompts(config: &mut Configuration, config_file_name: Option<Stri
     const MYSQL_DESTINATION: &str = "Append only MySQL destination";
     const KAFKA_DESTINATION: &str = "Kafka destination";
     const SNOWFLAKE_DESTINATION: &str = "Snowflake destination";
+    const FILE_DESTINATION: &str = "File destination";
     const EXIT: &str = "Exit";
     const PROMPT: &str = "What type of destination would you like to add?";
     match config_file_name {
@@ -1038,67 +1056,8 @@ fn destination_prompts(config: &mut Configuration, config_file_name: Option<Stri
                 MYSQL_DESTINATION,
                 KAFKA_DESTINATION,
                 SNOWFLAKE_DESTINATION,
+                FILE_DESTINATION,
                 EXIT,
-            ];
-            let destination = FuzzySelect::with_theme(&ColorfulTheme::default())
-                .with_prompt(PROMPT)
-                .items(&options)
-                .interact()
-                .unwrap();
-            match destination {
-                // MYCELITE_DESTINATION
-                0 => {
-                    prompt_mycelite_destination(config)?;
-                }
-                // SQLITE_DESTINATION
-                1 => {
-                    prompt_sqlite_destination(config)?;
-                }
-                // POSTGRES_DESTINATION
-                2 => {
-                    prompt_postgres_destination(config)?;
-                }
-                // MYSQL_DESTINATION
-                3 => {
-                    prompt_mysql_destination(config)?;
-                }
-                // KAFKA_DESTINATION
-                4 => {
-                    prompt_kafka_destination(config)?;
-                }
-                5 => {
-                    prompt_snowflake_destination(config)?;
-                }
-                // EXIT
-                6 => {
-                    match config.save(&config_file_name) {
-                        Ok(_) => {
-                            println!("{}", "config file updated!".green());
-                        }
-                        Err(_error) => {
-                            return Err(format!(
-                                "error creating config file `{}`",
-                                config_file_name
-                            )
-                            .into());
-                        }
-                    }
-                    return Ok(());
-                }
-                _ => {
-                    panic!("Unknown destination type");
-                }
-            }
-            destination_prompts(config, Some(config_file_name))?;
-        }
-        None => {
-            let options = vec![
-                MYCELITE_DESTINATION,
-                SQLITE_DESTINATION,
-                POSTGRES_DESTINATION,
-                MYSQL_DESTINATION,
-                KAFKA_DESTINATION,
-                SNOWFLAKE_DESTINATION,
             ];
             let destination = FuzzySelect::with_theme(&ColorfulTheme::default())
                 .with_prompt(PROMPT)
@@ -1130,6 +1089,77 @@ fn destination_prompts(config: &mut Configuration, config_file_name: Option<Stri
                 5 => {
                     prompt_snowflake_destination(config)?;
                 }
+                // FILE_DESTINATION
+                6 => {
+                    prompt_file_destination(config)?;
+                }
+                // EXIT
+                7 => {
+                    match config.save(&config_file_name) {
+                        Ok(_) => {
+                            println!("{}", "config file updated!".green());
+                        }
+                        Err(_error) => {
+                            return Err(format!(
+                                "error creating config file `{}`",
+                                config_file_name
+                            )
+                            .into());
+                        }
+                    }
+                    return Ok(());
+                }
+                _ => {
+                    panic!("Unknown destination type");
+                }
+            }
+            destination_prompts(config, Some(config_file_name))?;
+        }
+        None => {
+            let options = vec![
+                MYCELITE_DESTINATION,
+                SQLITE_DESTINATION,
+                POSTGRES_DESTINATION,
+                MYSQL_DESTINATION,
+                KAFKA_DESTINATION,
+                SNOWFLAKE_DESTINATION,
+                FILE_DESTINATION,
+            ];
+            let destination = FuzzySelect::with_theme(&ColorfulTheme::default())
+                .with_prompt(PROMPT)
+                .items(&options)
+                .interact()
+                .unwrap();
+            match destination {
+                // MYCELITE_DESTINATION
+                0 => {
+                    prompt_mycelite_destination(config)?;
+                }
+                // SQLITE_DESTINATION
+                1 => {
+                    prompt_sqlite_destination(config)?;
+                }
+                // POSTGRES_DESTINATION
+                2 => {
+                    prompt_postgres_destination(config)?;
+                }
+                // MYSQL_DESTINATION
+                3 => {
+                    prompt_mysql_destination(config)?;
+                }
+                // KAFKA_DESTINATION
+                4 => {
+                    prompt_kafka_destination(config)?;
+                }
+                // SNOWFLAKE_DESTINATION
+                5 => {
+                    prompt_snowflake_destination(config)?;
+                }
+                // FILE_DESTINATION
+                6 => {
+                    prompt_file_destination(config)?;
+                }
+
                 _ => {
                     panic!("Unknown destination type");
                 }

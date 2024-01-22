@@ -142,6 +142,12 @@ impl Config {
             None => self.sources = Some(vec![Source::file { display_name, path }]),
         }
     }
+    pub fn add_file_destination(&mut self, display_name: String, path: String) {
+        match &mut self.destinations {
+            Some(destinations) => destinations.push(Destination::file { display_name, path }),
+            None => self.destinations = Some(vec![Destination::file { display_name, path }]),
+        }
+    }
     pub fn add_snowflake_connector_destination(
         &mut self,
         display_name: String,
@@ -199,7 +205,7 @@ impl Config {
     pub(crate) fn add_postgres_connector_source(
         &mut self,
         display_name: String,
-        postgres_url: String,
+        url: String,
         schema: String,
         tables: String,
         poll_interval: i32,
@@ -207,7 +213,7 @@ impl Config {
         match &mut self.sources {
             Some(sources) => sources.push(Source::postgres_connector {
                 display_name,
-                postgres_url,
+                url,
                 schema,
                 tables,
                 poll_interval,
@@ -215,7 +221,7 @@ impl Config {
             None => {
                 self.sources = Some(vec![Source::postgres_connector {
                     display_name,
-                    postgres_url,
+                    url,
                     schema,
                     tables,
                     poll_interval,
@@ -227,7 +233,7 @@ impl Config {
     pub(crate) fn add_mysql_connector_source(
         &mut self,
         display_name: String,
-        mysql_url: String,
+        url: String,
         schema: String,
         tables: String,
         poll_interval: i32,
@@ -235,7 +241,7 @@ impl Config {
         match &mut self.sources {
             Some(sources) => sources.push(Source::mysql_connector {
                 display_name,
-                mysql_url,
+                url,
                 schema,
                 tables,
                 poll_interval,
@@ -243,7 +249,7 @@ impl Config {
             None => {
                 self.sources = Some(vec![Source::mysql_connector {
                     display_name,
-                    mysql_url,
+                    url,
                     schema,
                     tables,
                     poll_interval,
@@ -299,14 +305,14 @@ enum Source {
     },
     postgres_connector {
         display_name: String,
-        postgres_url: String,
+        url: String,
         schema: String,
         tables: String,
         poll_interval: i32,
     },
     mysql_connector {
         display_name: String,
-        mysql_url: String,
+        url: String,
         schema: String,
         tables: String,
         poll_interval: i32,
@@ -355,5 +361,9 @@ enum Destination {
         warehouse: String,
         database: String,
         schema: String,
+    },
+    file {
+        display_name: String,
+        path: String,
     },
 }
