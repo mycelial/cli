@@ -192,6 +192,51 @@ fn cli_init_snowflake_dest() -> Result<(), Box<dyn Error>> {
 }
 
 #[test]
+fn cli_init_file_dest() -> Result<(), Box<dyn Error>> {
+    #[derive(Deserialize)]
+    struct Config {
+        destinations: Vec<Destinations>,
+    }
+
+    #[derive(Deserialize)]
+    struct Destinations {
+        #[serde(rename = "type")]
+        destination_type: String,
+        display_name: String,
+        path: String,
+    }
+    let temp_dir = assert_fs::TempDir::new()?;
+    std::env::set_current_dir(&temp_dir)?;
+    let mut session = init_session()?;
+    session.send("Add Destination")?;
+    session.exp_string("Add Destination")?;
+    session.send_line("")?;
+    session.exp_string("What type of destination would you like to add?")?;
+    session.send("File destination")?;
+    session.exp_string("File destination")?;
+    session.send_line("")?;
+    session.exp_string("Display name:")?;
+    session.send_line("my file dest")?;
+    session.exp_string("Path:")?;
+    session.send_line("my_file.txt")?;
+    session.send("Exit")?;
+    session.exp_string("Exit")?;
+    session.send_line("")?;
+    session.exp_eof()?;
+
+    let config_file = temp_dir.child("config.toml");
+    let config_file_contents = std::fs::read_to_string(config_file.path())?;
+    let parsed: Config = toml::from_str(&config_file_contents)?;
+    assert_eq!(parsed.destinations.len(), 1);
+    assert_eq!(parsed.destinations[0].destination_type, "file");
+    assert_eq!(parsed.destinations[0].display_name, "my file dest");
+    assert_eq!(parsed.destinations[0].path, "my_file.txt");
+
+    temp_dir.close()?;
+    Ok(())
+}
+
+#[test]
 fn cli_init_file_src() -> Result<(), Box<dyn Error>> {
     #[derive(Deserialize)]
     struct Config {

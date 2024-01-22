@@ -142,6 +142,12 @@ impl Config {
             None => self.sources = Some(vec![Source::file { display_name, path }]),
         }
     }
+    pub fn add_file_destination(&mut self, display_name: String, path: String) {
+        match &mut self.destinations {
+            Some(destinations) => destinations.push(Destination::file { display_name, path }),
+            None => self.destinations = Some(vec![Destination::file { display_name, path }]),
+        }
+    }
     pub fn add_snowflake_connector_destination(
         &mut self,
         display_name: String,
@@ -355,5 +361,9 @@ enum Destination {
         warehouse: String,
         database: String,
         schema: String,
+    },
+    file {
+        display_name: String,
+        path: String,
     },
 }
