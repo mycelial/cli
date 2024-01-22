@@ -592,18 +592,18 @@ fn prompt_excel_source(config: &mut Configuration) -> Result<()> {
 fn prompt_mysql_source(config: &mut Configuration) -> Result<()> {
     let display_name: String = Input::with_theme(&ColorfulTheme::default())
         .with_prompt("Display name:")
-        .default("Mysql Source".to_string())
+        .default("MySQL Source".to_string())
         .allow_empty(false)
         .interact_text()
         .unwrap();
     let user: String = Input::with_theme(&ColorfulTheme::default())
-        .with_prompt("Mysql username:")
+        .with_prompt("MySQL username:")
         .default("user".to_string())
         .allow_empty(false)
         .interact_text()
         .unwrap();
     let password = Password::with_theme(&ColorfulTheme::default())
-        .with_prompt("Mysql password:")
+        .with_prompt("MySQL password:")
         .interact()
         .unwrap();
     let address: String = Input::with_theme(&ColorfulTheme::default())
@@ -613,7 +613,7 @@ fn prompt_mysql_source(config: &mut Configuration) -> Result<()> {
         .interact_text()
         .unwrap();
     let port: String = Input::with_theme(&ColorfulTheme::default())
-        .with_prompt("Mysql port:")
+        .with_prompt("MySQL port:")
         .default("3306".to_string())
         .allow_empty(false)
         .interact_text()
@@ -653,18 +653,18 @@ fn prompt_mysql_source(config: &mut Configuration) -> Result<()> {
 fn prompt_mysql_destination(config: &mut Configuration) -> Result<()> {
     let display_name: String = Input::with_theme(&ColorfulTheme::default())
         .with_prompt("Display name:")
-        .default("Mysql Append Only Destination".to_string())
+        .default("MySQL Append Only Destination".to_string())
         .allow_empty(false)
         .interact_text()
         .unwrap();
     let user: String = Input::with_theme(&ColorfulTheme::default())
-        .with_prompt("Mysql username:")
+        .with_prompt("MySQL username:")
         .default("user".to_string())
         .allow_empty(false)
         .interact_text()
         .unwrap();
     let password = Password::with_theme(&ColorfulTheme::default())
-        .with_prompt("Mysql password:")
+        .with_prompt("MySQL password:")
         .interact()
         .unwrap();
     let address: String = Input::with_theme(&ColorfulTheme::default())
@@ -674,7 +674,7 @@ fn prompt_mysql_destination(config: &mut Configuration) -> Result<()> {
         .interact_text()
         .unwrap();
     let port: String = Input::with_theme(&ColorfulTheme::default())
-        .with_prompt("Mysql port:")
+        .with_prompt("MySQL port:")
         .default("3306".to_string())
         .allow_empty(false)
         .interact_text()
