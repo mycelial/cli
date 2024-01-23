@@ -8,6 +8,8 @@ use std::fs::{self, read_to_string, remove_file, File};
 use std::io::Write;
 use std::path::Path;
 use std::process::Stdio;
+use std::thread;
+use std::time::Duration;
 use tar::Archive;
 use uuid::Uuid;
 extern crate dirs;
@@ -44,7 +46,6 @@ pub async fn start(client: bool, server: bool, config_file_name: String) -> Resu
             return Ok(());
         }
         start_server().await?;
-        println!("{}", "Server started on `http://localhost:7777`".green());
     }
     if client {
         if !can_start_client(&config_file_name) {
@@ -55,7 +56,6 @@ pub async fn start(client: bool, server: bool, config_file_name: String) -> Resu
             return Ok(());
         }
         start_client(config_file_name).await?;
-        println!("{}", "Myceliald (client) started!".green());
     }
     Ok(())
 }
@@ -283,7 +283,7 @@ async fn start_server() -> Result<()> {
         .interact()
         .unwrap();
 
-    let server_process = match std::process::Command::new("./server")
+    let mut server_process = match std::process::Command::new("./server")
         .arg("--token")
         .arg(token)
         .stdin(Stdio::null())
@@ -297,6 +297,19 @@ async fn start_server() -> Result<()> {
         Err(e) => panic!("failed to execute process: {}", e),
     };
     save_pid(Executable::Server, server_process.id())?;
+    thread::sleep(Duration::from_secs(1));
+    match server_process.try_wait() {
+        Ok(Some(_status)) => {
+            println!("{}", "Mycelial Server failed to start! ".red());
+            println!("{}", "check server.log for more information".red());
+        }
+        Ok(None) => {
+            println!("{}", "Server started on `http://localhost:7777`".green());
+        }
+        Err(e) => {
+            println!("error attempting to wait: {}", e);
+        }
+    }
     Ok(())
 }
 
@@ -306,7 +319,7 @@ async fn start_client(config_file_name: String) -> Result<()> {
         config_file_name
     );
     let myceliald_log_file = File::create("myceliald.log")?;
-    let client_process = match std::process::Command::new("./myceliald")
+    let mut client_process = match std::process::Command::new("./myceliald")
         .arg("--config")
         .arg(config_file_name)
         .stdin(Stdio::null())
@@ -322,6 +335,19 @@ async fn start_client(config_file_name: String) -> Result<()> {
         Err(e) => panic!("failed to execute process: {}", e),
     };
     save_pid(Executable::Client, client_process.id())?;
+    thread::sleep(Duration::from_secs(1));
+    match client_process.try_wait() {
+        Ok(Some(_status)) => {
+            println!("{}", "myceliald (client) failed to start! ".red());
+            println!("{}", "check myceliald.log for more information".red());
+        }
+        Ok(None) => {
+            println!("{}", "Myceliald (client) started!".green());
+        }
+        Err(e) => {
+            println!("error attempting to wait: {}", e);
+        }
+    }
     Ok(())
 }
 pub async fn download_and_unarchive(url: &str, file_name: &str) -> Result<()> {
