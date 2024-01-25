@@ -19,42 +19,42 @@ enum ServiceCommands {
         /// Sets a custom config file
         #[clap(short, long, value_parser)]
         config: Option<String>,
-        /// Installs the client as a service
+        /// Installs the daemon as a service
         #[clap(long)]
-        client: bool,
+        daemon: bool,
     },
     /// Remove a service
     Remove {
-        /// Remove the client as a service
+        /// Remove the daemon as a service
         #[clap(long)]
-        client: bool,
+        daemon: bool,
         /// Removes artifacts (config, database)
         #[clap(long)]
         purge: bool,
     },
     /// Check status of service
     Status {
-        /// show status of the client service (myceliald)
+        /// show status of the daemon service
         #[clap(long)]
-        client: bool,
+        daemon: bool,
     },
     /// Start a service
     Start {
-        /// start the client service (myceliald)
+        /// start the daemon service
         #[clap(long)]
-        client: bool,
+        daemon: bool,
     },
     /// Stop a service
     Stop {
-        /// stop the client service (myceliald)
+        /// stop the daemon service
         #[clap(long)]
-        client: bool,
+        daemon: bool,
     },
     /// Restart a service
     Restart {
-        /// restart the client service (myceliald)
+        /// restart the daemon service
         #[clap(long)]
-        client: bool,
+        daemon: bool,
     },
 }
 
@@ -62,48 +62,48 @@ enum ServiceCommands {
 enum Commands {
     /// setup mycelial
     Init {
-        /// download both the server and the client
+        /// download both the daemon and the control plane
         #[arg(short, long)]
         local: bool,
-        /// download the client
+        /// download the daemon
         #[arg(short, long)]
-        client: bool,
-        /// download the server
+        daemon: bool,
+        /// download the control plane
         #[arg(short, long)]
-        server: bool,
+        control_plane: bool,
         /// specify a config file name to use
         #[arg(long)]
         config: Option<String>,
     },
-    /// starts the server and myceliald (client)
+    /// starts the daemon and control plane
     Start {
-        /// start the client
+        /// start the daemon
         #[arg(short, long)]
-        client: bool,
-        /// start the server
+        daemon: bool,
+        /// start the control plane
         #[arg(short, long)]
-        server: bool,
+        control_plane: bool,
         /// specify a config file name to use
         #[arg(long)]
         config: Option<String>,
     },
-    /// stops the server and myceliald (client)
+    /// stops the daemon and control plane
     Destroy {
-        /// destroy the client
+        /// destroy the daemon
         #[arg(short, long)]
-        client: bool,
-        /// destroy the server
+        daemon: bool,
+        /// destroy the control plane
         #[arg(short, long)]
-        server: bool,
+        control_plane: bool,
     },
-    /// deletes the server and/or client databases
+    /// deletes the daemon and/or control plane  databases
     Reset {
-        /// delete the client database
+        /// delete the daemon database
         #[arg(short, long)]
-        client: bool,
-        /// delete the server database
+        daemon: bool,
+        /// delete the control plane database
         #[arg(short, long)]
-        server: bool,
+        control_plane: bool,
         /// specify a config file name to use
         #[arg(long)]
         config: Option<String>,
@@ -127,12 +127,12 @@ enum Commands {
     },
     /// update mycelial binaries
     Update {
-        /// update the client
+        /// update the daemon
         #[arg(short, long)]
-        client: bool,
-        /// update the server
+        daemon: bool,
+        /// update the control plane
         #[arg(short, long)]
-        server: bool,
+        control_plane: bool,
     },
 }
 
@@ -152,8 +152,8 @@ async fn run(args: Cli) -> Result<(), Box<dyn std::error::Error + Send + Sync>> 
     match args.command {
         Commands::Init {
             local,
-            client,
-            server,
+            daemon,
+            control_plane,
             config,
         } => {
             let config_file_name = match config {
@@ -162,57 +162,56 @@ async fn run(args: Cli) -> Result<(), Box<dyn std::error::Error + Send + Sync>> 
             };
             if local {
                 init(true, true, config_file_name).await?;
-            } else if client || server {
-                init(client, server, config_file_name).await?;
+            } else if daemon || control_plane {
+                init(daemon, control_plane, config_file_name).await?;
             } else {
                 init(false, false, config_file_name).await?;
-                // return Err(
-                //     "init command must be run with the --local, --client and/or --server options"
-                //         .into(),
-                // );
             }
         }
         Commands::Start {
-            client,
-            server,
+            daemon,
+            control_plane,
             config,
         } => {
             let config_file_name = match config {
                 Some(config) => config,
                 None => "config.toml".to_string(),
             };
-            // if neither client or server are specified, start both
-            if !client && !server {
+            // if neither daemon or control_plane are specified, start both
+            if !daemon && !control_plane {
                 start(true, true, config_file_name).await?;
             } else {
-                start(client, server, config_file_name).await?;
+                start(daemon, control_plane, config_file_name).await?;
             }
         }
-        Commands::Destroy { client, server } => {
-            // if neither client or server are specified, destroy both
-            if !client && !server {
+        Commands::Destroy {
+            daemon,
+            control_plane,
+        } => {
+            // if neither daemon or control_plane are specified, destroy both
+            if !daemon && !control_plane {
                 destroy(true, true).await?;
             } else {
-                destroy(client, server).await?;
+                destroy(daemon, control_plane).await?;
             }
         }
         Commands::Reset {
-            client,
-            server,
+            daemon,
+            control_plane,
             config,
         } => {
             let config_file_name = match config {
                 Some(config) => config,
                 None => "config.toml".to_string(),
             };
-            // if neither client or server are specified, destroy both
-            if !client && !server {
+            // if neither daemon or control_plane are specified, destroy both
+            if !daemon && !control_plane {
                 reset(true, true, &config_file_name).await?;
             } else {
-                if client {
+                if daemon {
                     reset(true, false, &config_file_name).await?;
                 }
-                if server {
+                if control_plane {
                     reset(false, true, &config_file_name).await?;
                 }
             }
@@ -238,13 +237,17 @@ async fn run(args: Cli) -> Result<(), Box<dyn std::error::Error + Send + Sync>> 
                 add_destination(&config_file_name).await?;
             }
         }
-        Commands::Update { client, server } => {
-            if !client && !server {
+        Commands::Update {
+            daemon,
+            control_plane,
+        } => {
+            if !daemon && !control_plane {
                 return Err(
-                    "update command must be run with the --client and/or --server options".into(),
+                    "update command must be run with the --daemon and/or --control-plane options"
+                        .into(),
                 );
             }
-            download_binaries(client, server).await?;
+            download_binaries(daemon, control_plane).await?;
             println!("Update complete");
         }
         Commands::Service { action } => {
@@ -252,56 +255,56 @@ async fn run(args: Cli) -> Result<(), Box<dyn std::error::Error + Send + Sync>> 
                 return Err("You must run this command with root permissions(sudo)".into());
             }
             match action {
-                ServiceCommands::Add { config, client } => {
-                    if client {
+                ServiceCommands::Add { config, daemon } => {
+                    if daemon {
                         let service = Service::new();
                         service.add_client(config).await?;
                     } else {
-                        println!("client not specified");
+                        println!("--daemon not specified");
                     }
                 }
-                ServiceCommands::Remove { client, purge } => {
-                    if client {
+                ServiceCommands::Remove { daemon, purge } => {
+                    if daemon {
                         let service = Service::new();
                         service.remove_client(purge).await?;
                     } else {
-                        println!("client not specified");
+                        println!("--daemon not specified");
                     }
                 }
-                ServiceCommands::Status { client } => {
+                ServiceCommands::Status { daemon } => {
                     let service = Service::new();
-                    if client {
+                    if daemon {
                         service.status_client()?;
                     }
-                    if !client {
-                        println!("client not specified");
+                    if !daemon {
+                        println!("--daemon not specified");
                     }
                 }
-                ServiceCommands::Start { client } => {
+                ServiceCommands::Start { daemon } => {
                     let service = Service::new();
-                    if client {
+                    if daemon {
                         service.start_client()?;
                     }
-                    if !client {
-                        println!("client not specified");
+                    if !daemon {
+                        println!("--daemon not specified");
                     }
                 }
-                ServiceCommands::Stop { client } => {
+                ServiceCommands::Stop { daemon } => {
                     let service = Service::new();
-                    if client {
+                    if daemon {
                         service.stop_client()?;
                     }
-                    if !client {
-                        println!("client not specified");
+                    if !daemon {
+                        println!("--daemon not specified");
                     }
                 }
-                ServiceCommands::Restart { client } => {
+                ServiceCommands::Restart { daemon } => {
                     let service = Service::new();
-                    if client {
+                    if daemon {
                         service.restart_client()?;
                     }
-                    if !client {
-                        println!("client not specified");
+                    if !daemon {
+                        println!("--daemon not specified");
                     }
                 }
             }

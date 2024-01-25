@@ -20,13 +20,13 @@ use dialoguer::{theme::ColorfulTheme, Confirm, FuzzySelect, Input, Password};
 type Result<T> = std::result::Result<T, Box<dyn std::error::Error + Send + Sync>>;
 
 enum Executable {
-    Server,
-    Client,
+    ControlPlane,
+    Daemon,
 }
 
-pub async fn init(client: bool, server: bool, config_file_name: String) -> Result<()> {
+pub async fn init(daemon: bool, control_plane: bool, config_file_name: String) -> Result<()> {
     println!("{}", "Initializing Mycelial".green());
-    download_binaries(client, server).await?;
+    download_binaries(daemon, control_plane).await?;
     println!(
         "{}",
         "Create a config file by answering the following questions.".green()
@@ -35,23 +35,23 @@ pub async fn init(client: bool, server: bool, config_file_name: String) -> Resul
     Ok(())
 }
 
-pub async fn start(client: bool, server: bool, config_file_name: String) -> Result<()> {
-    destroy(client, server).await?;
-    if server {
+pub async fn start(daemon: bool, control_plane: bool, config_file_name: String) -> Result<()> {
+    destroy(daemon, control_plane).await?;
+    if control_plane {
         if !can_start_server() {
             println!(
                 "{}",
-                "Missing server binary. You must run `mycelial init --local` before `mycelial start`".red()
+                "Missing control plane binary. You must run `mycelial init --local` before `mycelial start`".red()
             );
             return Ok(());
         }
         start_server().await?;
     }
-    if client {
+    if daemon {
         if !can_start_client(&config_file_name) {
             println!(
                 "{}",
-                "Missing myceliald binary or config file. You must run `mycelial init --local` before `mycelial start`".red()
+                "Missing daemon binary or config file. You must run `mycelial init --local` before `mycelial start`".red()
             );
             return Ok(());
         }
@@ -60,9 +60,9 @@ pub async fn start(client: bool, server: bool, config_file_name: String) -> Resu
     Ok(())
 }
 
-pub async fn destroy(client: bool, server: bool) -> Result<()> {
-    if client {
-        let pids = get_pids(Executable::Client);
+pub async fn destroy(daemon: bool, control_plane: bool) -> Result<()> {
+    if daemon {
+        let pids = get_pids(Executable::Daemon);
         for pid in pids {
             let pid_int = pid.parse::<i32>().unwrap();
             let result = nix::sys::signal::kill(
@@ -71,17 +71,17 @@ pub async fn destroy(client: bool, server: bool) -> Result<()> {
             );
             match result {
                 Ok(_) => {
-                    println!("killed client pid {}", pid);
+                    println!("killed daemon pid {}", pid);
                 }
                 Err(_err) => {
-                    eprintln!("error killing client pid {}", pid);
+                    eprintln!("error killing daemon pid {}", pid);
                 }
             }
         }
-        delete_pids_file(Executable::Client)?;
+        delete_pids_file(Executable::Daemon)?;
     }
-    if server {
-        let pids = get_pids(Executable::Server);
+    if control_plane {
+        let pids = get_pids(Executable::ControlPlane);
         for pid in pids {
             let pid_int = pid.parse::<i32>().unwrap();
             let result = nix::sys::signal::kill(
@@ -90,14 +90,14 @@ pub async fn destroy(client: bool, server: bool) -> Result<()> {
             );
             match result {
                 Ok(_) => {
-                    println!("killed server pid {}", pid);
+                    println!("killed control plane pid {}", pid);
                 }
                 Err(_err) => {
-                    eprintln!("error killing server pid {}", pid);
+                    eprintln!("error killing control plane pid {}", pid);
                 }
             }
         }
-        delete_pids_file(Executable::Server)?;
+        delete_pids_file(Executable::ControlPlane)?;
     }
     Ok(())
 }
@@ -111,13 +111,13 @@ fn storage_path(config_file_name: &str) -> Option<String> {
     }
 }
 
-pub async fn reset(client: bool, server: bool, config_file_name: &str) -> Result<()> {
+pub async fn reset(daemon: bool, control_plane: bool, config_file_name: &str) -> Result<()> {
     let answer: bool = Confirm::with_theme(&ColorfulTheme::default())
         .with_prompt("Are you sure you want to reset Mycelial?")
         .interact()
         .unwrap();
     if answer {
-        if client {
+        if daemon {
             let client_db_path =
                 storage_path(config_file_name).expect("Could not find config.toml");
             let result = remove_file(&client_db_path);
@@ -130,7 +130,7 @@ pub async fn reset(client: bool, server: bool, config_file_name: &str) -> Result
                 }
             }
         }
-        if server {
+        if control_plane {
             let result = remove_file("mycelial.db");
             match result {
                 Ok(_) => {
@@ -153,8 +153,8 @@ fn delete_pids_file(executable: Executable) -> Result<()> {
     match result {
         Ok(_) => {
             let which = match executable {
-                Executable::Server => "server",
-                Executable::Client => "client",
+                Executable::ControlPlane => "control plane",
+                Executable::Daemon => "daemon",
             };
             println!("deleted {} pid file ({})", which, file_name);
         }
@@ -168,8 +168,8 @@ fn delete_pids_file(executable: Executable) -> Result<()> {
 fn get_pid_file(executable: &Executable) -> String {
     let home_dir = dirs::home_dir().unwrap();
     match executable {
-        Executable::Server => format!("{}/.mycelial/server.pid", home_dir.display()),
-        Executable::Client => format!("{}/.mycelial/myceliald.pid", home_dir.display()),
+        Executable::ControlPlane => format!("{}/.mycelial/control_plane.pid", home_dir.display()),
+        Executable::Daemon => format!("{}/.mycelial/daemon.pid", home_dir.display()),
     }
 }
 
@@ -209,37 +209,37 @@ fn save_pid(executable: Executable, pid: u32) -> Result<()> {
     Ok(())
 }
 
-pub async fn download_binaries(client: bool, server: bool) -> Result<()> {
-    if server && client {
-        println!("Downloading and unarchiving server and myceliald (client)...");
-    } else if server {
-        println!("Downloading and unarchiving server...");
-    } else if client {
-        println!("Downloading and unarchiving myceliald (client)...");
+pub async fn download_binaries(daemon: bool, control_plane: bool) -> Result<()> {
+    if control_plane && daemon {
+        println!("Downloading and unarchiving control plane and daemon...");
+    } else if control_plane {
+        println!("Downloading and unarchiving control plane...");
+    } else if daemon {
+        println!("Downloading and unarchiving daemon...");
     }
     match std::env::consts::OS {
         "linux" => match std::env::consts::ARCH {
             "x86_64" => {
-                if server {
+                if control_plane {
                     download_and_unarchive("https://github.com/mycelial/mycelial/releases/latest/download/server-x86_64-unknown-linux-gnu.tgz" , "server-x86_64-unknown-linux-gnu.tgz").await?;
                 }
-                if client {
+                if daemon {
                     download_and_unarchive("https://github.com/mycelial/mycelial/releases/latest/download/myceliald-x86_64-unknown-linux-gnu.tgz", "myceliald-x86_64-unknown-linux-gnu.tgz").await?;
                 }
             }
             "aarch64" => {
-                if server {
+                if control_plane {
                     download_and_unarchive("https://github.com/mycelial/mycelial/releases/latest/download/server-aarch64-unknown-linux-gnu.tgz" , "server-aarch64-unknown-linux-gnu.tgz").await?;
                 }
-                if client {
+                if daemon {
                     download_and_unarchive("https://github.com/mycelial/mycelial/releases/latest/download/myceliald-aarch64-unknown-linux-gnu.tgz", "myceliald-aarch64-unknown-linux-gnu.tgz").await?;
                 }
             }
             "arm" => {
-                if server {
+                if control_plane {
                     download_and_unarchive("https://github.com/mycelial/mycelial/releases/latest/download/server-arm-unknown-linux-gnueabihf.tgz" , "server-arm-unknown-linux-gnueabihf.tgz").await?;
                 }
-                if client {
+                if daemon {
                     download_and_unarchive("https://github.com/mycelial/mycelial/releases/latest/download/myceliald-arm-unknown-linux-gnueabihf.tgz", "myceliald-arm-unknown-linux-gnueabihf.tgz").await?;
                 }
             }
@@ -249,18 +249,18 @@ pub async fn download_binaries(client: bool, server: bool) -> Result<()> {
         },
         "macos" => match std::env::consts::ARCH {
             "x86_64" => {
-                if server {
+                if control_plane {
                     download_and_unarchive("https://github.com/mycelial/mycelial/releases/latest/download/server-x86_64-apple-darwin.tgz", "server-x86_64-apple-darwin.tgz").await?;
                 }
-                if client {
+                if daemon {
                     download_and_unarchive("https://github.com/mycelial/mycelial/releases/latest/download/myceliald-x86_64-apple-darwin.tgz", "myceliald-x86_64-apple-darwin.tgz").await?;
                 }
             }
             "aarch64" => {
-                if server {
+                if control_plane {
                     download_and_unarchive("https://github.com/mycelial/mycelial/releases/latest/download/server-aarch64-apple-darwin.tgz", "server-aarch64-apple-darwin.tgz").await?;
                 }
-                if client {
+                if daemon {
                     download_and_unarchive("https://github.com/mycelial/mycelial/releases/latest/download/myceliald-aarch64-apple-darwin.tgz", "myceliald-aarch64-apple-darwin.tgz").await?;
                 }
             }
@@ -276,8 +276,8 @@ pub async fn download_binaries(client: bool, server: bool) -> Result<()> {
 }
 
 async fn start_server() -> Result<()> {
-    println!("Starting Mycelial Server...");
-    let server_log_file = File::create("server.log")?;
+    println!("Starting Mycelial Control Plane...");
+    let server_log_file = File::create("control_plane.log")?;
     let token = Password::with_theme(&ColorfulTheme::default())
         .with_prompt("Security Token:")
         .interact()
@@ -296,15 +296,18 @@ async fn start_server() -> Result<()> {
         Ok(process) => process,
         Err(e) => panic!("failed to execute process: {}", e),
     };
-    save_pid(Executable::Server, server_process.id())?;
+    save_pid(Executable::ControlPlane, server_process.id())?;
     thread::sleep(Duration::from_secs(1));
     match server_process.try_wait() {
         Ok(Some(_status)) => {
-            println!("{}", "Mycelial Server failed to start! ".red());
-            println!("{}", "check server.log for more information".red());
+            println!("{}", "Mycelial Control Plane failed to start! ".red());
+            println!("{}", "check control_plane.log for more information".red());
         }
         Ok(None) => {
-            println!("{}", "Server started on `http://localhost:7777`".green());
+            println!(
+                "{}",
+                "Control Plane started on `http://localhost:7777`".green()
+            );
         }
         Err(e) => {
             println!("error attempting to wait: {}", e);
@@ -314,11 +317,8 @@ async fn start_server() -> Result<()> {
 }
 
 async fn start_client(config_file_name: String) -> Result<()> {
-    println!(
-        "Starting myceliald (client) with config file {}...",
-        config_file_name
-    );
-    let myceliald_log_file = File::create("myceliald.log")?;
+    println!("Starting daemon with config file {}...", config_file_name);
+    let myceliald_log_file = File::create("daemon.log")?;
     let mut client_process = match std::process::Command::new("./myceliald")
         .arg("--config")
         .arg(config_file_name)
@@ -334,15 +334,15 @@ async fn start_client(config_file_name: String) -> Result<()> {
         Ok(process) => process,
         Err(e) => panic!("failed to execute process: {}", e),
     };
-    save_pid(Executable::Client, client_process.id())?;
+    save_pid(Executable::Daemon, client_process.id())?;
     thread::sleep(Duration::from_secs(1));
     match client_process.try_wait() {
         Ok(Some(_status)) => {
-            println!("{}", "myceliald (client) failed to start! ".red());
-            println!("{}", "check myceliald.log for more information".red());
+            println!("{}", "daemon failed to start! ".red());
+            println!("{}", "check daemon.log for more information".red());
         }
         Ok(None) => {
-            println!("{}", "Myceliald (client) started!".green());
+            println!("{}", "daemon started!".green());
         }
         Err(e) => {
             println!("error attempting to wait: {}", e);
@@ -903,19 +903,19 @@ async fn do_create_config(
 ) -> Result<()> {
     let database_storage_path = match database_storage_path {
         Some(database_storage_path) => database_storage_path,
-        None => "client.db".to_string(),
+        None => "daemon.db".to_string(),
     };
     let mut config = Configuration::new();
     let client_name: String = Input::with_theme(&ColorfulTheme::default())
-        .with_prompt("Client Name:")
-        .default("My Client".to_string())
+        .with_prompt("Daemon Name:")
+        .default("My Daemon".to_string())
         .allow_empty(false)
         .interact_text()
         .unwrap();
 
     let client_id: String = Input::with_theme(&ColorfulTheme::default())
-        .with_prompt("Client ID:")
-        .default("client".to_string())
+        .with_prompt("Daemon ID:")
+        .default("daemon".to_string())
         .allow_empty(false)
         .interact_text()
         .unwrap();
@@ -926,8 +926,8 @@ async fn do_create_config(
 
     config.set_node(client_name, unique_id, database_storage_path);
 
-    let server: String = Input::with_theme(&ColorfulTheme::default())
-        .with_prompt("Server:")
+    let control_plane: String = Input::with_theme(&ColorfulTheme::default())
+        .with_prompt("Control Plane:")
         .default("http://localhost:7777".to_string())
         .allow_empty(false)
         .interact_text()
@@ -938,7 +938,7 @@ async fn do_create_config(
         .interact()
         .unwrap();
 
-    config.set_server(server, token);
+    config.set_server(control_plane, token);
 
     source_destination_loop(&mut config, config_file_name)?;
     Ok(())
@@ -998,7 +998,7 @@ fn source_prompts(config: &mut Configuration, config_file_name: Option<String>) 
                 6 => {
                     match config.save(&config_file_name) {
                         Ok(_) => {
-                            println!("{}", format!("{} updated!", config_file_name).green());
+                            println!("{}", format!("{} saved!", config_file_name).green());
                         }
                         Err(_error) => {
                             return Err(format!(
@@ -1123,7 +1123,7 @@ fn destination_prompts(config: &mut Configuration, config_file_name: Option<Stri
                 7 => {
                     match config.save(&config_file_name) {
                         Ok(_) => {
-                            println!("{}", "config file updated!".green());
+                            println!("{}", "config file saved!".green());
                         }
                         Err(_error) => {
                             return Err(format!(
@@ -1245,7 +1245,7 @@ fn source_destination_loop(config: &mut Configuration, config_file_name: String)
         if answer == 2 {
             match config.save(&config_file_name) {
                 Ok(_) => {
-                    println!("{}", format!("{} updated!", config_file_name).green());
+                    println!("{}", format!("{} saved!", config_file_name).green());
                 }
                 Err(_error) => {
                     return Err("error creating config file".into());

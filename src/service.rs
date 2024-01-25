@@ -12,8 +12,8 @@ pub struct Service {}
 type Result<T> = std::result::Result<T, Box<dyn std::error::Error + Send + Sync>>;
 const CLIENT_DEST_PATH: &str = "/usr/local/bin/myceliald";
 const CLIENT_CONFIG_PATH: &str = "/etc/mycelial/config.toml";
-const CLIENT_DB_PATH: &str = "/var/lib/mycelial/client.db";
-const SERVICE_LABEL: &str = "com.mycelial.myceliald";
+const CLIENT_DB_PATH: &str = "/var/lib/mycelial/daemon.db";
+const SERVICE_LABEL: &str = "com.mycelial.daemon";
 impl Service {
     pub fn new() -> Service {
         Service {}
@@ -45,7 +45,7 @@ impl Service {
         if Path::new(CLIENT_DB_PATH).exists() {
             let theme = ColorfulTheme::default();
             let confirm = Confirm::with_theme(&theme)
-                .with_prompt("Overwrite existing client database?")
+                .with_prompt("Overwrite existing daemon database?")
                 .default(false)
                 .interact()?;
             if confirm {
@@ -106,7 +106,7 @@ impl Service {
                 label: label.clone(),
             })
             .expect("Failed to start");
-        println!("Mycelial client installed and started");
+        println!("Mycelial daemon installed and started");
         Ok(())
     }
     fn uninstall_client(&self) -> Result<()> {
@@ -115,27 +115,24 @@ impl Service {
         match manager.stop(ServiceStopCtx {
             label: label.clone(),
         }) {
-            Ok(_) => println!("Myceliald client stopped"),
-            Err(_) => println!("Myceliald client not running"),
+            Ok(_) => println!("Mycelial daemon stopped"),
+            Err(_) => println!("Mycelial daemon not running"),
         }
         manager
             .uninstall(ServiceUninstallCtx {
                 label: label.clone(),
             })
             .expect("Failed to uninstall");
-        println!("myceliald service removed");
+        println!("daemon service removed");
         Ok(())
     }
     fn purge_client(&self) -> Result<()> {
         fs::remove_file(CLIENT_CONFIG_PATH)?;
-        println!(
-            "myceliald client configuration deleted {}",
-            CLIENT_CONFIG_PATH
-        );
+        println!("daemon configuration deleted {}", CLIENT_CONFIG_PATH);
         fs::remove_file(CLIENT_DEST_PATH)?;
-        println!("myceliald client binary deleted {}", CLIENT_DEST_PATH);
+        println!("daemon binary deleted {}", CLIENT_DEST_PATH);
         fs::remove_file(CLIENT_DB_PATH)?;
-        println!("myceliald client database deleted {}", CLIENT_DB_PATH);
+        println!("daemon database deleted {}", CLIENT_DB_PATH);
         Ok(())
     }
     pub fn status_client(&self) -> Result<()> {
