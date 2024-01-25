@@ -9,11 +9,11 @@ fn init_session() -> Result<rexpect::session::PtySession, Box<dyn Error>> {
     let mut cmd = Command::new(bin_path);
     cmd.arg("init");
     let mut session = spawn_command(cmd, Some(1_000))?;
-    session.exp_string("Client Name:")?;
-    session.send_line("My Client")?;
-    session.exp_string("Client ID:")?;
-    session.send_line("my-client")?;
-    session.exp_string("Server:")?;
+    session.exp_string("Daemon Name:")?;
+    session.send_line("My Daemon")?;
+    session.exp_string("Daemon ID:")?;
+    session.send_line("my-daemon")?;
+    session.exp_string("Control Plane:")?;
     session.send_line("http://localhost:8080")?;
     session.exp_string("Security Token:")?;
     session.send_line("token")?;
@@ -35,10 +35,10 @@ fn cli_init_config_node_server() -> Result<(), Box<dyn Error>> {
     let parsed_config: toml::Value = toml::from_str(&config_file_contents)?;
     assert_eq!(
         parsed_config["node"]["display_name"].as_str().unwrap(),
-        "My Client"
+        "My Daemon"
     );
     let unique_id = parsed_config["node"]["unique_id"].as_str().unwrap();
-    assert!(unique_id.starts_with("my-client"));
+    assert!(unique_id.starts_with("my-daemon"));
     let storage_path = parsed_config["node"]["storage_path"].as_str().unwrap();
     assert_eq!(storage_path, "client.db");
 
@@ -310,13 +310,13 @@ fn cli_init_mysql_src() -> Result<(), Box<dyn Error>> {
     session.send_line("")?;
     session.exp_string("Display name:")?;
     session.send_line("Mysql Source")?;
-    session.exp_string("Mysql username:")?;
+    session.exp_string("MySQL username:")?;
     session.send_line("mysql_user")?;
-    session.exp_string("Mysql password:")?;
+    session.exp_string("MySQL password:")?;
     session.send_line("password")?;
     session.exp_string("Server address:")?;
     session.send_line("127.0.0.1")?;
-    session.exp_string("Mysql port:")?;
+    session.exp_string("MySQL port:")?;
     session.send_line("1000")?;
     session.exp_string("Database name:")?;
     session.send_line("mydb")?;
@@ -681,13 +681,13 @@ fn cli_init_append_only_mysql_dest() -> Result<(), Box<dyn Error>> {
     session.send_line("")?;
     session.exp_string("Display name:")?;
     session.send_line("mysql")?;
-    session.exp_string("Mysql username:")?;
+    session.exp_string("MySQL username:")?;
     session.send_line("mysqluser")?;
-    session.exp_string("Mysql password:")?;
+    session.exp_string("MySQL password:")?;
     session.send_line("password")?;
     session.exp_string("Server address:")?;
     session.send_line("10.0.0.10")?;
-    session.exp_string("Mysql port:")?;
+    session.exp_string("MySQL port:")?;
     session.send_line("1234")?;
     session.exp_string("Database name:")?;
     session.send_line("mydb")?;
