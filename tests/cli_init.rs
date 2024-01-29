@@ -40,7 +40,7 @@ fn cli_init_config_node_server() -> Result<(), Box<dyn Error>> {
     let unique_id = parsed_config["node"]["unique_id"].as_str().unwrap();
     assert!(unique_id.starts_with("my-daemon"));
     let storage_path = parsed_config["node"]["storage_path"].as_str().unwrap();
-    assert_eq!(storage_path, "client.db");
+    assert_eq!(storage_path, "daemon.db");
 
     let endpoint = parsed_config["server"]["endpoint"].as_str().unwrap();
     assert_eq!(endpoint, "http://localhost:8080");
