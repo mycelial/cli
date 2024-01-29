@@ -74,6 +74,12 @@ enum Commands {
         /// specify a config file name to use
         #[arg(long)]
         config: Option<String>,
+        /// control plane endpoint
+        #[arg(short, long)]
+        endpoint: Option<String>,
+        /// workspace token
+        #[arg(short, long)]
+        token: Option<String>,
     },
     /// starts the daemon and control plane
     Start {
@@ -155,17 +161,19 @@ async fn run(args: Cli) -> Result<(), Box<dyn std::error::Error + Send + Sync>> 
             daemon,
             control_plane,
             config,
+            endpoint,
+            token,
         } => {
             let config_file_name = match config {
                 Some(config) => config,
                 None => "config.toml".to_string(),
             };
             if local {
-                init(true, true, config_file_name).await?;
+                init(true, true, config_file_name, endpoint, token).await?;
             } else if daemon || control_plane {
-                init(daemon, control_plane, config_file_name).await?;
+                init(daemon, control_plane, config_file_name, endpoint, token).await?;
             } else {
-                init(false, false, config_file_name).await?;
+                init(false, false, config_file_name, endpoint, token).await?;
             }
         }
         Commands::Start {
