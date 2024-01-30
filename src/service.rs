@@ -81,6 +81,8 @@ impl Service {
                     CLIENT_CONFIG_PATH.to_string(),
                     database_storage_path,
                     config_action,
+                    None,
+                    None,
                 )
                 .await?;
             }

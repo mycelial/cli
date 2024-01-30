@@ -24,14 +24,20 @@ enum Executable {
     Daemon,
 }
 
-pub async fn init(daemon: bool, control_plane: bool, config_file_name: String) -> Result<()> {
+pub async fn init(
+    daemon: bool,
+    control_plane: bool,
+    config_file_name: String,
+    endpoint: Option<String>,
+    token: Option<String>,
+) -> Result<()> {
     println!("{}", "Initializing Mycelial".green());
     download_binaries(daemon, control_plane).await?;
     println!(
         "{}",
         "Create a config file by answering the following questions.".green()
     );
-    create_config(config_file_name, None, None).await?;
+    create_config(config_file_name, None, None, endpoint, token).await?;
     Ok(())
 }
 
@@ -866,6 +872,8 @@ pub async fn create_config(
     config_file_name: String,
     database_storage_path: Option<String>,
     config_action: Option<ConfigAction>,
+    endpoint: Option<String>,
+    token: Option<String>,
 ) -> Result<()> {
     let (action, config_file_name) = if config_action.is_none() {
         config_file_action(config_file_name)?
@@ -874,7 +882,8 @@ pub async fn create_config(
     };
     match action {
         ConfigAction::Create => {
-            return do_create_config(config_file_name, database_storage_path).await;
+            return do_create_config(config_file_name, database_storage_path, endpoint, token)
+                .await;
         }
         ConfigAction::Append => {
             return do_append_config(config_file_name).await;
@@ -900,6 +909,8 @@ async fn do_append_config(config_file_name: String) -> Result<()> {
 async fn do_create_config(
     config_file_name: String,
     database_storage_path: Option<String>,
+    endpoint: Option<String>,
+    token: Option<String>,
 ) -> Result<()> {
     let database_storage_path = match database_storage_path {
         Some(database_storage_path) => database_storage_path,
@@ -925,18 +936,28 @@ async fn do_create_config(
     let unique_id = format!("{}-{}", client_id, id);
 
     config.set_node(client_name, unique_id, database_storage_path);
-
-    let control_plane: String = Input::with_theme(&ColorfulTheme::default())
-        .with_prompt("Control Plane:")
-        .default("http://localhost:7777".to_string())
-        .allow_empty(false)
-        .interact_text()
-        .unwrap();
-
-    let token = Password::with_theme(&ColorfulTheme::default())
-        .with_prompt("Security Token:")
-        .interact()
-        .unwrap();
+    let control_plane = match endpoint {
+        Some(endpoint) => endpoint,
+        None => {
+            let control_plane: String = Input::with_theme(&ColorfulTheme::default())
+                .with_prompt("Control Plane:")
+                .default("http://localhost:7777".to_string())
+                .allow_empty(false)
+                .interact_text()
+                .unwrap();
+            control_plane
+        }
+    };
+    let token = match token {
+        Some(token) => token,
+        None => {
+            let token = Password::with_theme(&ColorfulTheme::default())
+                .with_prompt("Security Token:")
+                .interact()
+                .unwrap();
+            token
+        }
+    };
 
     config.set_server(control_plane, token);
 
@@ -1207,7 +1228,7 @@ pub async fn add_source(config_file_name: &str) -> Result<()> {
             }
         }
     } else {
-        create_config(config_file_name.to_string(), None, None).await?;
+        create_config(config_file_name.to_string(), None, None, None, None).await?;
     }
     Ok(())
 }
@@ -1224,7 +1245,7 @@ pub async fn add_destination(config_file_name: &str) -> Result<()> {
             }
         }
     } else {
-        create_config(config_file_name.to_string(), None, None).await?;
+        create_config(config_file_name.to_string(), None, None, None, None).await?;
     }
     Ok(())
 }
