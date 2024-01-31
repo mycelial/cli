@@ -970,6 +970,7 @@ fn source_prompts(config: &mut Configuration, config_file_name: Option<String>) 
     const MYSQL_SOURCE: &str = "Append only MySQL source";
     const FILE_SOURCE: &str = "File source";
     const EXIT: &str = "Exit";
+    const CANCEL: &str = "Cancel";
     const PROMPT: &str = "What type of source would you like to add?";
     match config_file_name {
         Some(config_file_name) => {
@@ -1042,6 +1043,7 @@ fn source_prompts(config: &mut Configuration, config_file_name: Option<String>) 
                 POSTGRES_SOURCE,
                 MYSQL_SOURCE,
                 FILE_SOURCE,
+                CANCEL,
             ];
             let source = FuzzySelect::with_theme(&ColorfulTheme::default())
                 .with_prompt(PROMPT)
@@ -1069,8 +1071,13 @@ fn source_prompts(config: &mut Configuration, config_file_name: Option<String>) 
                 4 => {
                     prompt_mysql_source(config)?;
                 }
+                // FILE_SOURCE
                 5 => {
                     prompt_file_source(config)?;
+                }
+                // CANCEL
+                6 => {
+                    return Ok(());
                 }
                 _ => {
                     panic!("Unknown source type");
@@ -1090,6 +1097,7 @@ fn destination_prompts(config: &mut Configuration, config_file_name: Option<Stri
     const SNOWFLAKE_DESTINATION: &str = "Snowflake destination";
     const FILE_DESTINATION: &str = "File destination";
     const EXIT: &str = "Exit";
+    const CANCEL: &str = "Cancel";
     const PROMPT: &str = "What type of destination would you like to add?";
     match config_file_name {
         Some(config_file_name) => {
@@ -1168,6 +1176,7 @@ fn destination_prompts(config: &mut Configuration, config_file_name: Option<Stri
                 KAFKA_DESTINATION,
                 SNOWFLAKE_DESTINATION,
                 FILE_DESTINATION,
+                CANCEL,
             ];
             let destination = FuzzySelect::with_theme(&ColorfulTheme::default())
                 .with_prompt(PROMPT)
@@ -1202,6 +1211,10 @@ fn destination_prompts(config: &mut Configuration, config_file_name: Option<Stri
                 // FILE_DESTINATION
                 6 => {
                     prompt_file_destination(config)?;
+                }
+                // CANCEL
+                7 => {
+                    return Ok(());
                 }
 
                 _ => {
