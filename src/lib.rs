@@ -2,7 +2,6 @@ use colored::*;
 use flate2::read::GzDecoder;
 use indicatif::{ProgressBar, ProgressState, ProgressStyle};
 use std::cmp::min;
-use std::env::current_dir;
 use std::fmt;
 use std::fs::{self, read_to_string, remove_file, File};
 use std::io::Write;
@@ -383,10 +382,15 @@ pub async fn download_and_unarchive(url: &str, file_name: &str) -> Result<()> {
 }
 
 fn prompt_sqlite_source(config: &mut Configuration) -> Result<()> {
-    let cwd = current_dir()?.into_os_string().into_string().unwrap();
     let display_name: String = Input::with_theme(&ColorfulTheme::default())
         .with_prompt("Display name:")
         .default("SQLite Append Only Source".to_string())
+        .allow_empty(false)
+        .interact_text()
+        .unwrap();
+    let tables: String = Input::with_theme(&ColorfulTheme::default())
+        .with_prompt("Tables:")
+        .default("*".to_string())
         .allow_empty(false)
         .interact_text()
         .unwrap();
@@ -396,13 +400,11 @@ fn prompt_sqlite_source(config: &mut Configuration) -> Result<()> {
         .allow_empty(false)
         .interact_text()
         .unwrap();
-    let database_path = format!("{}/{}", cwd, path);
-    config.add_sqlite_connector_source(display_name, database_path);
+    config.add_sqlite_connector_source(display_name, tables, path);
     Ok(())
 }
 
 fn prompt_mycelite_source(config: &mut Configuration) -> Result<()> {
-    let cwd = current_dir()?.into_os_string().into_string().unwrap();
     let display_name: String = Input::with_theme(&ColorfulTheme::default())
         .with_prompt("Display name:")
         .default("Example Source".to_string())
@@ -415,13 +417,11 @@ fn prompt_mycelite_source(config: &mut Configuration) -> Result<()> {
         .allow_empty(false)
         .interact_text()
         .unwrap();
-    let journal_path = format!("{}/{}", cwd, path);
-    config.add_sqlite_physical_replication_source(display_name, journal_path);
+    config.add_sqlite_physical_replication_source(display_name, path);
     Ok(())
 }
 
 fn prompt_mycelite_destination(config: &mut Configuration) -> Result<()> {
-    let cwd = current_dir()?.into_os_string().into_string().unwrap();
     let display_name: String = Input::with_theme(&ColorfulTheme::default())
         .with_prompt("Display name:")
         .default("Example Destination".to_string())
@@ -440,13 +440,11 @@ fn prompt_mycelite_destination(config: &mut Configuration) -> Result<()> {
         .allow_empty(false)
         .interact_text()
         .unwrap();
-    let journal_path = format!("{}/{}", cwd, path);
-    config.add_sqlite_physical_replication_destination(display_name, journal_path, database_path);
+    config.add_sqlite_physical_replication_destination(display_name, path, database_path);
     Ok(())
 }
 
 fn prompt_sqlite_destination(config: &mut Configuration) -> Result<()> {
-    let cwd = current_dir()?.into_os_string().into_string().unwrap();
     let display_name: String = Input::with_theme(&ColorfulTheme::default())
         .with_prompt("Display name:")
         .default("SQLite Append Only Destination".to_string())
@@ -459,8 +457,7 @@ fn prompt_sqlite_destination(config: &mut Configuration) -> Result<()> {
         .allow_empty(false)
         .interact_text()
         .unwrap();
-    let database_path = format!("{}/{}", cwd, path);
-    config.add_sqlite_connector_destination(display_name, database_path);
+    config.add_sqlite_connector_destination(display_name, path);
     Ok(())
 }
 
@@ -973,6 +970,7 @@ fn source_prompts(config: &mut Configuration, config_file_name: Option<String>) 
     const MYSQL_SOURCE: &str = "Append only MySQL source";
     const FILE_SOURCE: &str = "File source";
     const EXIT: &str = "Exit";
+    const CANCEL: &str = "Cancel";
     const PROMPT: &str = "What type of source would you like to add?";
     match config_file_name {
         Some(config_file_name) => {
@@ -1045,6 +1043,7 @@ fn source_prompts(config: &mut Configuration, config_file_name: Option<String>) 
                 POSTGRES_SOURCE,
                 MYSQL_SOURCE,
                 FILE_SOURCE,
+                CANCEL,
             ];
             let source = FuzzySelect::with_theme(&ColorfulTheme::default())
                 .with_prompt(PROMPT)
@@ -1072,8 +1071,13 @@ fn source_prompts(config: &mut Configuration, config_file_name: Option<String>) 
                 4 => {
                     prompt_mysql_source(config)?;
                 }
+                // FILE_SOURCE
                 5 => {
                     prompt_file_source(config)?;
+                }
+                // CANCEL
+                6 => {
+                    return Ok(());
                 }
                 _ => {
                     panic!("Unknown source type");
@@ -1093,6 +1097,7 @@ fn destination_prompts(config: &mut Configuration, config_file_name: Option<Stri
     const SNOWFLAKE_DESTINATION: &str = "Snowflake destination";
     const FILE_DESTINATION: &str = "File destination";
     const EXIT: &str = "Exit";
+    const CANCEL: &str = "Cancel";
     const PROMPT: &str = "What type of destination would you like to add?";
     match config_file_name {
         Some(config_file_name) => {
@@ -1171,6 +1176,7 @@ fn destination_prompts(config: &mut Configuration, config_file_name: Option<Stri
                 KAFKA_DESTINATION,
                 SNOWFLAKE_DESTINATION,
                 FILE_DESTINATION,
+                CANCEL,
             ];
             let destination = FuzzySelect::with_theme(&ColorfulTheme::default())
                 .with_prompt(PROMPT)
@@ -1205,6 +1211,10 @@ fn destination_prompts(config: &mut Configuration, config_file_name: Option<Stri
                 // FILE_DESTINATION
                 6 => {
                     prompt_file_destination(config)?;
+                }
+                // CANCEL
+                7 => {
+                    return Ok(());
                 }
 
                 _ => {
