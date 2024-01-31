@@ -383,10 +383,15 @@ pub async fn download_and_unarchive(url: &str, file_name: &str) -> Result<()> {
 }
 
 fn prompt_sqlite_source(config: &mut Configuration) -> Result<()> {
-    let cwd = current_dir()?.into_os_string().into_string().unwrap();
     let display_name: String = Input::with_theme(&ColorfulTheme::default())
         .with_prompt("Display name:")
         .default("SQLite Append Only Source".to_string())
+        .allow_empty(false)
+        .interact_text()
+        .unwrap();
+    let tables: String = Input::with_theme(&ColorfulTheme::default())
+        .with_prompt("Tables:")
+        .default("*".to_string())
         .allow_empty(false)
         .interact_text()
         .unwrap();
@@ -396,8 +401,7 @@ fn prompt_sqlite_source(config: &mut Configuration) -> Result<()> {
         .allow_empty(false)
         .interact_text()
         .unwrap();
-    let database_path = format!("{}/{}", cwd, path);
-    config.add_sqlite_connector_source(display_name, database_path);
+    config.add_sqlite_connector_source(display_name, tables, path);
     Ok(())
 }
 

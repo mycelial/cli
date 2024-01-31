@@ -38,10 +38,25 @@ impl Config {
             }
         }
     }
-    pub fn add_sqlite_connector_source(&mut self, display_name: String, path: String) {
+    pub fn add_sqlite_connector_source(
+        &mut self,
+        display_name: String,
+        tables: String,
+        path: String,
+    ) {
         match &mut self.sources {
-            Some(sources) => sources.push(Source::sqlite_connector { display_name, path }),
-            None => self.sources = Some(vec![Source::sqlite_connector { display_name, path }]),
+            Some(sources) => sources.push(Source::sqlite_connector {
+                display_name,
+                tables,
+                path,
+            }),
+            None => {
+                self.sources = Some(vec![Source::sqlite_connector {
+                    display_name,
+                    tables,
+                    path,
+                }])
+            }
         }
     }
     pub fn add_sqlite_physical_replication_destination(
@@ -301,6 +316,7 @@ enum Source {
     },
     sqlite_connector {
         display_name: String,
+        tables: String,
         path: String,
     },
     postgres_connector {

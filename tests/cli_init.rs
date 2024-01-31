@@ -461,6 +461,7 @@ fn cli_init_append_only_sqlite_src() -> Result<(), Box<dyn Error>> {
         #[serde(rename = "type")]
         source_type: String,
         display_name: String,
+        tables: String,
         path: String,
     }
     let temp_dir = assert_fs::TempDir::new()?;
@@ -476,6 +477,8 @@ fn cli_init_append_only_sqlite_src() -> Result<(), Box<dyn Error>> {
     session.send_line("")?;
     session.exp_string("Display name:")?;
     session.send_line("sqlite")?;
+    session.exp_string("Tables:")?;
+    session.send_line("*")?;
     session.exp_string("Database Path:")?;
     session.send_line("data.db")?;
     session.send("Exit")?;
@@ -489,6 +492,7 @@ fn cli_init_append_only_sqlite_src() -> Result<(), Box<dyn Error>> {
     assert_eq!(parsed.sources.len(), 1);
     assert_eq!(parsed.sources[0].source_type, "sqlite_connector");
     assert_eq!(parsed.sources[0].display_name, "sqlite");
+    assert_eq!(parsed.sources[0].tables, "*");
     assert!(parsed.sources[0].path.ends_with("data.db"));
 
     temp_dir.close()?;
