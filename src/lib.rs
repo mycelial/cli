@@ -2,7 +2,6 @@ use colored::*;
 use flate2::read::GzDecoder;
 use indicatif::{ProgressBar, ProgressState, ProgressStyle};
 use std::cmp::min;
-use std::env::current_dir;
 use std::fmt;
 use std::fs::{self, read_to_string, remove_file, File};
 use std::io::Write;
@@ -406,7 +405,6 @@ fn prompt_sqlite_source(config: &mut Configuration) -> Result<()> {
 }
 
 fn prompt_mycelite_source(config: &mut Configuration) -> Result<()> {
-    let cwd = current_dir()?.into_os_string().into_string().unwrap();
     let display_name: String = Input::with_theme(&ColorfulTheme::default())
         .with_prompt("Display name:")
         .default("Example Source".to_string())
@@ -419,13 +417,11 @@ fn prompt_mycelite_source(config: &mut Configuration) -> Result<()> {
         .allow_empty(false)
         .interact_text()
         .unwrap();
-    let journal_path = format!("{}/{}", cwd, path);
-    config.add_sqlite_physical_replication_source(display_name, journal_path);
+    config.add_sqlite_physical_replication_source(display_name, path);
     Ok(())
 }
 
 fn prompt_mycelite_destination(config: &mut Configuration) -> Result<()> {
-    let cwd = current_dir()?.into_os_string().into_string().unwrap();
     let display_name: String = Input::with_theme(&ColorfulTheme::default())
         .with_prompt("Display name:")
         .default("Example Destination".to_string())
@@ -444,13 +440,11 @@ fn prompt_mycelite_destination(config: &mut Configuration) -> Result<()> {
         .allow_empty(false)
         .interact_text()
         .unwrap();
-    let journal_path = format!("{}/{}", cwd, path);
-    config.add_sqlite_physical_replication_destination(display_name, journal_path, database_path);
+    config.add_sqlite_physical_replication_destination(display_name, path, database_path);
     Ok(())
 }
 
 fn prompt_sqlite_destination(config: &mut Configuration) -> Result<()> {
-    let cwd = current_dir()?.into_os_string().into_string().unwrap();
     let display_name: String = Input::with_theme(&ColorfulTheme::default())
         .with_prompt("Display name:")
         .default("SQLite Append Only Destination".to_string())
@@ -463,8 +457,7 @@ fn prompt_sqlite_destination(config: &mut Configuration) -> Result<()> {
         .allow_empty(false)
         .interact_text()
         .unwrap();
-    let database_path = format!("{}/{}", cwd, path);
-    config.add_sqlite_connector_destination(display_name, database_path);
+    config.add_sqlite_connector_destination(display_name, path);
     Ok(())
 }
 
