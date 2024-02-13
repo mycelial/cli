@@ -15,7 +15,7 @@ fn init_session() -> Result<rexpect::session::PtySession, Box<dyn Error>> {
     session.send_line("my-daemon")?;
     session.exp_string("Control Plane:")?;
     session.send_line("http://localhost:8080")?;
-    session.exp_string("Security Token:")?;
+    session.exp_string("Auth Token:")?;
     session.send_line("token")?;
     session.exp_string("What would you like to do?")?;
     Ok(session)
@@ -45,7 +45,7 @@ fn cli_init_config_node_server() -> Result<(), Box<dyn Error>> {
     let endpoint = parsed_config["server"]["endpoint"].as_str().unwrap();
     assert_eq!(endpoint, "http://localhost:8080");
 
-    let token = parsed_config["server"]["token"].as_str().unwrap();
+    let token = parsed_config["node"]["auth_token"].as_str().unwrap();
     assert_eq!(token, "token");
     temp_dir.close()?;
     Ok(())
@@ -403,53 +403,6 @@ fn cli_init_excel_src() -> Result<(), Box<dyn Error>> {
 }
 
 #[test]
-fn cli_init_mycelite_src() -> Result<(), Box<dyn Error>> {
-    #[derive(Deserialize)]
-    struct Config {
-        sources: Vec<Source>,
-    }
-
-    #[derive(Deserialize)]
-    struct Source {
-        #[serde(rename = "type")]
-        source_type: String,
-        display_name: String,
-        journal_path: String,
-    }
-    let temp_dir = assert_fs::TempDir::new()?;
-    std::env::set_current_dir(&temp_dir)?;
-    let mut session = init_session()?;
-    session.send("Add Source")?;
-    session.exp_string("Add Source")?;
-    session.send_line("")?;
-    session.exp_string("What type of source would you like to add?")?;
-    session.send("Full SQLite replication source")?;
-    session.exp_string("Full SQLite replication source")?;
-    session.send_line("")?;
-    session.exp_string("Display name:")?;
-    session.send_line("mycelite")?;
-    session.exp_string("Journal Path:")?;
-    session.send_line("mydata.db-mycelial")?;
-    session.send("Exit")?;
-    session.exp_string("Exit")?;
-    session.send_line("")?;
-    session.exp_eof()?;
-
-    let config_file = temp_dir.child("config.toml");
-    let config_file_contents = std::fs::read_to_string(config_file.path())?;
-    let parsed: Config = toml::from_str(&config_file_contents)?;
-    assert_eq!(parsed.sources.len(), 1);
-    assert_eq!(parsed.sources[0].source_type, "sqlite_physical_replication");
-    assert_eq!(parsed.sources[0].display_name, "mycelite");
-    assert!(parsed.sources[0]
-        .journal_path
-        .ends_with("mydata.db-mycelial"));
-
-    temp_dir.close()?;
-    Ok(())
-}
-
-#[test]
 fn cli_init_append_only_sqlite_src() -> Result<(), Box<dyn Error>> {
     #[derive(Deserialize)]
     struct Config {
@@ -494,62 +447,6 @@ fn cli_init_append_only_sqlite_src() -> Result<(), Box<dyn Error>> {
     assert_eq!(parsed.sources[0].display_name, "sqlite");
     assert_eq!(parsed.sources[0].tables, "*");
     assert!(parsed.sources[0].path.ends_with("data.db"));
-
-    temp_dir.close()?;
-    Ok(())
-}
-
-#[test]
-fn cli_init_append_only_mycelite_dest() -> Result<(), Box<dyn Error>> {
-    #[derive(Deserialize)]
-    struct Config {
-        destinations: Vec<Destination>,
-    }
-
-    #[derive(Deserialize)]
-    struct Destination {
-        #[serde(rename = "type")]
-        destination_type: String,
-        display_name: String,
-        journal_path: String,
-        database_path: String,
-    }
-    let temp_dir = assert_fs::TempDir::new()?;
-    std::env::set_current_dir(&temp_dir)?;
-    let mut session = init_session()?;
-    session.send("Add Destination")?;
-    session.exp_string("Add Destination")?;
-    session.send_line("")?;
-    session.exp_string("What type of destination would you like to add?")?;
-    session.send("Full SQLite replication destination")?;
-    session.exp_string("Full SQLite replication destination")?;
-    session.send_line("")?;
-    session.exp_string("Display name:")?;
-    session.send_line("mycelite")?;
-    session.exp_string("Journal Path:")?;
-    session.send_line("data-mycelial")?;
-    session.exp_string("Database Path:")?;
-    session.send_line("destination.db")?;
-    session.send("Exit")?;
-    session.exp_string("Exit")?;
-    session.send_line("")?;
-    session.exp_eof()?;
-
-    let config_file = temp_dir.child("config.toml");
-    let config_file_contents = std::fs::read_to_string(config_file.path())?;
-    let parsed: Config = toml::from_str(&config_file_contents)?;
-    assert_eq!(parsed.destinations.len(), 1);
-    assert_eq!(
-        parsed.destinations[0].destination_type,
-        "sqlite_physical_replication"
-    );
-    assert_eq!(parsed.destinations[0].display_name, "mycelite");
-    assert!(parsed.destinations[0]
-        .journal_path
-        .ends_with("data-mycelial"));
-    assert!(parsed.destinations[0]
-        .database_path
-        .ends_with("destination.db"));
 
     temp_dir.close()?;
     Ok(())
