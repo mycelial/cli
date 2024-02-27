@@ -404,46 +404,6 @@ fn prompt_sqlite_source(config: &mut Configuration) -> Result<()> {
     Ok(())
 }
 
-fn prompt_mycelite_source(config: &mut Configuration) -> Result<()> {
-    let display_name: String = Input::with_theme(&ColorfulTheme::default())
-        .with_prompt("Display name:")
-        .default("Example Source".to_string())
-        .allow_empty(false)
-        .interact_text()
-        .unwrap();
-    let path: String = Input::with_theme(&ColorfulTheme::default())
-        .with_prompt("Journal Path:")
-        .default("data.db-mycelial".to_string())
-        .allow_empty(false)
-        .interact_text()
-        .unwrap();
-    config.add_sqlite_physical_replication_source(display_name, path);
-    Ok(())
-}
-
-fn prompt_mycelite_destination(config: &mut Configuration) -> Result<()> {
-    let display_name: String = Input::with_theme(&ColorfulTheme::default())
-        .with_prompt("Display name:")
-        .default("Example Destination".to_string())
-        .allow_empty(false)
-        .interact_text()
-        .unwrap();
-    let path: String = Input::with_theme(&ColorfulTheme::default())
-        .with_prompt("Journal Path:")
-        .default("destination-sqlite-mycelial".to_string())
-        .allow_empty(false)
-        .interact_text()
-        .unwrap();
-    let database_path: String = Input::with_theme(&ColorfulTheme::default())
-        .with_prompt("Database Path:")
-        .default("destination-sqlite.data".to_string())
-        .allow_empty(false)
-        .interact_text()
-        .unwrap();
-    config.add_sqlite_physical_replication_destination(display_name, path, database_path);
-    Ok(())
-}
-
 fn prompt_sqlite_destination(config: &mut Configuration) -> Result<()> {
     let display_name: String = Input::with_theme(&ColorfulTheme::default())
         .with_prompt("Display name:")
@@ -932,7 +892,6 @@ async fn do_create_config(
 
     let unique_id = format!("{}-{}", client_id, id);
 
-    config.set_node(client_name, unique_id, database_storage_path);
     let control_plane = match endpoint {
         Some(endpoint) => endpoint,
         None => {
@@ -945,25 +904,25 @@ async fn do_create_config(
             control_plane
         }
     };
-    let token = match token {
+    let auth_token = match token {
         Some(token) => token,
         None => {
             let token = Password::with_theme(&ColorfulTheme::default())
-                .with_prompt("Security Token:")
+                .with_prompt("Auth Token:")
                 .interact()
                 .unwrap();
             token
         }
     };
 
-    config.set_server(control_plane, token);
+    config.set_node(client_name, unique_id, database_storage_path, auth_token);
+    config.set_server(control_plane);
 
     source_destination_loop(&mut config, config_file_name)?;
     Ok(())
 }
 
 fn source_prompts(config: &mut Configuration, config_file_name: Option<String>) -> Result<()> {
-    const MYCELITE_SOURCE: &str = "Full SQLite replication source";
     const SQLITE_SOURCE: &str = "Append only SQLite source";
     const EXCEL_SOURCE: &str = "Excel source";
     const POSTGRES_SOURCE: &str = "Append only Postgres source";
@@ -975,7 +934,6 @@ fn source_prompts(config: &mut Configuration, config_file_name: Option<String>) 
     match config_file_name {
         Some(config_file_name) => {
             let options = vec![
-                MYCELITE_SOURCE,
                 SQLITE_SOURCE,
                 EXCEL_SOURCE,
                 POSTGRES_SOURCE,
@@ -989,32 +947,28 @@ fn source_prompts(config: &mut Configuration, config_file_name: Option<String>) 
                 .interact()
                 .unwrap();
             match source {
-                // MYCELITE_SOURCE
-                0 => {
-                    prompt_mycelite_source(config)?;
-                }
                 // SQLITE_SOURCE
-                1 => {
+                0 => {
                     prompt_sqlite_source(config)?;
                 }
                 // EXCEL_SOURCE
-                2 => {
+                1 => {
                     prompt_excel_source(config)?;
                 }
                 // POSTGRES_SOURCE
-                3 => {
+                2 => {
                     prompt_postgres_source(config)?;
                 }
                 // MYSQL_SOURCE
-                4 => {
+                3 => {
                     prompt_mysql_source(config)?;
                 }
                 // FILE_SOURCE
-                5 => {
+                4 => {
                     prompt_file_source(config)?;
                 }
                 // EXIT
-                6 => {
+                5 => {
                     match config.save(&config_file_name) {
                         Ok(_) => {
                             println!("{}", format!("{} saved!", config_file_name).green());
@@ -1037,7 +991,6 @@ fn source_prompts(config: &mut Configuration, config_file_name: Option<String>) 
         }
         None => {
             let options = vec![
-                MYCELITE_SOURCE,
                 SQLITE_SOURCE,
                 EXCEL_SOURCE,
                 POSTGRES_SOURCE,
@@ -1051,32 +1004,28 @@ fn source_prompts(config: &mut Configuration, config_file_name: Option<String>) 
                 .interact()
                 .unwrap();
             match source {
-                // MYCELITE_SOURCE
-                0 => {
-                    prompt_mycelite_source(config)?;
-                }
                 // SQLITE_SOURCE
-                1 => {
+                0 => {
                     prompt_sqlite_source(config)?;
                 }
                 // EXCEL_SOURCE
-                2 => {
+                1 => {
                     prompt_excel_source(config)?;
                 }
                 // POSTGRES_SOURCE
-                3 => {
+                2 => {
                     prompt_postgres_source(config)?;
                 }
                 // MYSQL_SOURCE
-                4 => {
+                3 => {
                     prompt_mysql_source(config)?;
                 }
                 // FILE_SOURCE
-                5 => {
+                4 => {
                     prompt_file_source(config)?;
                 }
                 // CANCEL
-                6 => {
+                5 => {
                     return Ok(());
                 }
                 _ => {
@@ -1089,7 +1038,6 @@ fn source_prompts(config: &mut Configuration, config_file_name: Option<String>) 
 }
 
 fn destination_prompts(config: &mut Configuration, config_file_name: Option<String>) -> Result<()> {
-    const MYCELITE_DESTINATION: &str = "Full SQLite replication destination";
     const SQLITE_DESTINATION: &str = "Append only SQLite destination";
     const POSTGRES_DESTINATION: &str = "Append only Postgres destination";
     const MYSQL_DESTINATION: &str = "Append only MySQL destination";
@@ -1102,7 +1050,6 @@ fn destination_prompts(config: &mut Configuration, config_file_name: Option<Stri
     match config_file_name {
         Some(config_file_name) => {
             let options = vec![
-                MYCELITE_DESTINATION,
                 SQLITE_DESTINATION,
                 POSTGRES_DESTINATION,
                 MYSQL_DESTINATION,
@@ -1117,36 +1064,32 @@ fn destination_prompts(config: &mut Configuration, config_file_name: Option<Stri
                 .interact()
                 .unwrap();
             match destination {
-                // MYCELITE_DESTINATION
-                0 => {
-                    prompt_mycelite_destination(config)?;
-                }
                 // SQLITE_DESTINATION
-                1 => {
+                0 => {
                     prompt_sqlite_destination(config)?;
                 }
                 // POSTGRES_DESTINATION
-                2 => {
+                1 => {
                     prompt_postgres_destination(config)?;
                 }
                 // MYSQL_DESTINATION
-                3 => {
+                2 => {
                     prompt_mysql_destination(config)?;
                 }
                 // KAFKA_DESTINATION
-                4 => {
+                3 => {
                     prompt_kafka_destination(config)?;
                 }
                 // SNOWFLAKE_DESTINATION
-                5 => {
+                4 => {
                     prompt_snowflake_destination(config)?;
                 }
                 // FILE_DESTINATION
-                6 => {
+                5 => {
                     prompt_file_destination(config)?;
                 }
                 // EXIT
-                7 => {
+                6 => {
                     match config.save(&config_file_name) {
                         Ok(_) => {
                             println!("{}", "config file saved!".green());
@@ -1169,7 +1112,6 @@ fn destination_prompts(config: &mut Configuration, config_file_name: Option<Stri
         }
         None => {
             let options = vec![
-                MYCELITE_DESTINATION,
                 SQLITE_DESTINATION,
                 POSTGRES_DESTINATION,
                 MYSQL_DESTINATION,
@@ -1184,36 +1126,32 @@ fn destination_prompts(config: &mut Configuration, config_file_name: Option<Stri
                 .interact()
                 .unwrap();
             match destination {
-                // MYCELITE_DESTINATION
-                0 => {
-                    prompt_mycelite_destination(config)?;
-                }
                 // SQLITE_DESTINATION
-                1 => {
+                0 => {
                     prompt_sqlite_destination(config)?;
                 }
                 // POSTGRES_DESTINATION
-                2 => {
+                1 => {
                     prompt_postgres_destination(config)?;
                 }
                 // MYSQL_DESTINATION
-                3 => {
+                2 => {
                     prompt_mysql_destination(config)?;
                 }
                 // KAFKA_DESTINATION
-                4 => {
+                3 => {
                     prompt_kafka_destination(config)?;
                 }
                 // SNOWFLAKE_DESTINATION
-                5 => {
+                4 => {
                     prompt_snowflake_destination(config)?;
                 }
                 // FILE_DESTINATION
-                6 => {
+                5 => {
                     prompt_file_destination(config)?;
                 }
                 // CANCEL
-                7 => {
+                6 => {
                     return Ok(());
                 }
 

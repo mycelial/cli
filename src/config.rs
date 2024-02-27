@@ -10,33 +10,22 @@ impl Config {
             destinations: None,
         }
     }
-    pub fn set_node(&mut self, display_name: String, unique_id: String, storage_path: String) {
+    pub fn set_node(
+        &mut self,
+        display_name: String,
+        unique_id: String,
+        storage_path: String,
+        auth_token: String,
+    ) {
         self.node = Some(Node {
             display_name,
             unique_id,
             storage_path,
+            auth_token,
         });
     }
-    pub fn set_server(&mut self, endpoint: String, token: String) {
-        self.server = Some(Server { endpoint, token });
-    }
-    pub fn add_sqlite_physical_replication_source(
-        &mut self,
-        display_name: String,
-        journal_path: String,
-    ) {
-        match &mut self.sources {
-            Some(sources) => sources.push(Source::sqlite_physical_replication {
-                display_name,
-                journal_path,
-            }),
-            None => {
-                self.sources = Some(vec![Source::sqlite_physical_replication {
-                    display_name,
-                    journal_path,
-                }])
-            }
-        }
+    pub fn set_server(&mut self, endpoint: String) {
+        self.server = Some(Server { endpoint });
     }
     pub fn add_sqlite_connector_source(
         &mut self,
@@ -55,27 +44,6 @@ impl Config {
                     display_name,
                     tables,
                     path,
-                }])
-            }
-        }
-    }
-    pub fn add_sqlite_physical_replication_destination(
-        &mut self,
-        display_name: String,
-        journal_path: String,
-        database_path: String,
-    ) {
-        match &mut self.destinations {
-            Some(destinations) => destinations.push(Destination::sqlite_physical_replication {
-                display_name,
-                journal_path,
-                database_path,
-            }),
-            None => {
-                self.destinations = Some(vec![Destination::sqlite_physical_replication {
-                    display_name,
-                    journal_path,
-                    database_path,
                 }])
             }
         }
@@ -287,12 +255,12 @@ struct Node {
     display_name: String,
     unique_id: String,
     storage_path: String,
+    auth_token: String,
 }
 
 #[derive(Serialize, Deserialize)]
 struct Server {
     endpoint: String,
-    token: String,
 }
 
 #[derive(Serialize, Deserialize)]
