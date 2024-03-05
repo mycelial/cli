@@ -527,7 +527,7 @@ fn prompt_postgres_source(config: &mut Configuration) -> Result<()> {
         .unwrap();
     let origin: String = Input::with_theme(&ColorfulTheme::default())
         .with_prompt("Origin:")
-        .default("*".to_string())
+        .default("test".to_string())
         .allow_empty(false)
         .interact_text()
         .unwrap();
