@@ -189,24 +189,24 @@ impl Config {
         &mut self,
         display_name: String,
         url: String,
-        schema: String,
-        tables: String,
+        origin: String,
+        query: String,
         poll_interval: i32,
     ) {
         match &mut self.sources {
             Some(sources) => sources.push(Source::postgres_connector {
                 display_name,
                 url,
-                schema,
-                tables,
+                origin,
+                query,
                 poll_interval,
             }),
             None => {
                 self.sources = Some(vec![Source::postgres_connector {
                     display_name,
                     url,
-                    schema,
-                    tables,
+                    origin,
+                    query,
                     poll_interval,
                 }])
             }
@@ -290,8 +290,8 @@ enum Source {
     postgres_connector {
         display_name: String,
         url: String,
-        schema: String,
-        tables: String,
+        origin: String,
+        query: String,
         poll_interval: i32,
     },
     mysql_connector {
