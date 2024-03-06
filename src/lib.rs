@@ -525,14 +525,14 @@ fn prompt_postgres_source(config: &mut Configuration) -> Result<()> {
         .allow_empty(false)
         .interact_text()
         .unwrap();
-    let schema: String = Input::with_theme(&ColorfulTheme::default())
-        .with_prompt("Schema:")
-        .default("public".to_string())
+    let origin: String = Input::with_theme(&ColorfulTheme::default())
+        .with_prompt("Origin:")
+        .default("test".to_string())
         .allow_empty(false)
         .interact_text()
         .unwrap();
-    let tables: String = Input::with_theme(&ColorfulTheme::default())
-        .with_prompt("Tables:")
+    let query: String = Input::with_theme(&ColorfulTheme::default())
+        .with_prompt("Query:")
         .default("*".to_string())
         .allow_empty(false)
         .interact_text()
@@ -547,7 +547,7 @@ fn prompt_postgres_source(config: &mut Configuration) -> Result<()> {
         "postgres://{}:{}@{}:{}/{}",
         user, password, address, port, database
     );
-    config.add_postgres_connector_source(display_name, postgres_url, schema, tables, poll_interval);
+    config.add_postgres_connector_source(display_name, postgres_url, origin, query, poll_interval);
     Ok(())
 }
 
