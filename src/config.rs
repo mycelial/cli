@@ -284,8 +284,9 @@ enum Source {
     },
     sqlite_connector {
         display_name: String,
-        tables: String,
+        origin: String,
         path: String,
+        query: String,
     },
     postgres_connector {
         display_name: String,
@@ -297,8 +298,8 @@ enum Source {
     mysql_connector {
         display_name: String,
         url: String,
-        schema: String,
-        tables: String,
+        origin: String,
+        query: String,
         poll_interval: i32,
     },
     file {
@@ -322,14 +323,17 @@ enum Destination {
     sqlite_connector {
         display_name: String,
         path: String,
+        truncate: bool,
     },
     postgres_connector {
         display_name: String,
         url: String,
+        truncate: bool,
     },
     mysql_connector {
         display_name: String,
         url: String,
+        truncate: bool,
     },
     kafka {
         display_name: String,
@@ -345,6 +349,7 @@ enum Destination {
         warehouse: String,
         database: String,
         schema: String,
+        truncate: bool,
     },
     file {
         display_name: String,
