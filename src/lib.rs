@@ -142,7 +142,7 @@ pub async fn reset(daemon: bool, control_plane: bool, config_file_name: &str) ->
                     println!("{}", "mycelial.db deleted!".green());
                 }
                 Err(_error) => {
-                    println!("{}", "mycelial.db does not exists".yellow());
+                    println!("{}", "mycelial.db does not exist".yellow());
                 }
             }
         }
