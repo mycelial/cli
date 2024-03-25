@@ -109,10 +109,8 @@ pub async fn destroy(daemon: bool, control_plane: bool) -> Result<()> {
 
 fn storage_path(config_file_name: &str) -> Option<String> {
     match Configuration::load(config_file_name) {
-        Ok(config) => {
-            return config.get_node_storage_path();
-        }
-        Err(_error) => return None,
+        Ok(config) => config.get_node_storage_path(),
+        Err(_error) => None,
     }
 }
 
@@ -206,7 +204,6 @@ fn save_pid(executable: Executable, pid: u32) -> Result<()> {
     create_pid_file_dir()?;
     let file_name = get_pid_file(&executable);
     let mut file = std::fs::OpenOptions::new()
-        .write(true)
         .append(true)
         .create(true)
         .open(file_name)?;
@@ -696,7 +693,7 @@ fn prompt_mysql_destination(config: &mut Configuration) -> Result<()> {
         .allow_empty(false)
         .interact_text()
         .unwrap();
-    
+
     let mysql_url = format!(
         "mysql://{}:{}@{}:{}/{}",
         user, password, address, port, database
@@ -819,7 +816,7 @@ fn config_file_action(config_file_name: String) -> Result<(ConfigAction, std::st
     const RENAME: &str = "Rename file";
     let options = vec![OVERWRITE, APPEND, RENAME];
     if !config_path.exists() {
-        return Ok((ConfigAction::Create, config_file_name));
+        Ok((ConfigAction::Create, config_file_name))
     } else {
         let answer = FuzzySelect::with_theme(&ColorfulTheme::default())
             .with_prompt(&format!(
@@ -831,13 +828,9 @@ fn config_file_action(config_file_name: String) -> Result<(ConfigAction, std::st
             .unwrap();
         match answer {
             // OVERWRITE
-            0 => {
-                return Ok((ConfigAction::Create, config_file_name));
-            }
+            0 => Ok((ConfigAction::Create, config_file_name)),
             // APPEND
-            1 => {
-                return Ok((ConfigAction::Append, config_file_name));
-            }
+            1 => Ok((ConfigAction::Append, config_file_name)),
             // RENAME
             2 => {
                 let new_config_file_name: String = Input::with_theme(&ColorfulTheme::default())
@@ -847,7 +840,7 @@ fn config_file_action(config_file_name: String) -> Result<(ConfigAction, std::st
                     .interact_text()
                     .unwrap();
                 let result = config_file_action(new_config_file_name)?;
-                return Ok(result);
+                Ok(result)
             }
             _ => {
                 panic!("Unknown config file action");
@@ -870,15 +863,10 @@ pub async fn create_config(
     };
     match action {
         ConfigAction::Create => {
-            return do_create_config(config_file_name, database_storage_path, endpoint, token)
-                .await;
+            do_create_config(config_file_name, database_storage_path, endpoint, token).await
         }
-        ConfigAction::Append => {
-            return do_append_config(config_file_name).await;
-        }
-        ConfigAction::UseExisting => {
-            return Ok(());
-        }
+        ConfigAction::Append => do_append_config(config_file_name).await,
+        ConfigAction::UseExisting => Ok(()),
     }
 }
 
@@ -1198,7 +1186,7 @@ fn destination_prompts(config: &mut Configuration, config_file_name: Option<Stri
 pub async fn add_source(config_file_name: &str) -> Result<()> {
     let config_file_name_path = Path::new(config_file_name);
     if config_file_name_path.exists() {
-        match Configuration::load(&config_file_name) {
+        match Configuration::load(config_file_name) {
             Ok(mut config) => {
                 source_prompts(&mut config, Some(config_file_name.to_string()))?;
             }
@@ -1215,7 +1203,7 @@ pub async fn add_source(config_file_name: &str) -> Result<()> {
 pub async fn add_destination(config_file_name: &str) -> Result<()> {
     let config_file_name_path = Path::new(config_file_name);
     if config_file_name_path.exists() {
-        match Configuration::load(&config_file_name) {
+        match Configuration::load(config_file_name) {
             Ok(mut config) => {
                 destination_prompts(&mut config, Some(config_file_name.to_string()))?;
             }

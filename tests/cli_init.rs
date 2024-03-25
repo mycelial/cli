@@ -3,10 +3,9 @@ use rexpect::session::spawn_command;
 use serde::Deserialize;
 use std::process::Command;
 
-
 // current test suite can be runned only sequentially
 // prevent race condition between std::env::set_current_dir
-fn lock<'a>() -> std::sync::MutexGuard<'a, ()>{
+fn lock<'a>() -> std::sync::MutexGuard<'a, ()> {
     static GLOBAL_LOCK: std::sync::Mutex<()> = std::sync::Mutex::new(());
 
     // we don't care about mutex poisoning
@@ -87,7 +86,9 @@ fn cli_init_postgres_src() {
     session.send("Add Source").unwrap();
     session.exp_string("Add Source").unwrap();
     session.send_line("").unwrap();
-    session.exp_string("What type of source would you like to add?").unwrap();
+    session
+        .exp_string("What type of source would you like to add?")
+        .unwrap();
     session.send("Postgres source").unwrap();
     session.exp_string("Postgres source").unwrap();
     session.send_line("").unwrap();
@@ -106,7 +107,9 @@ fn cli_init_postgres_src() {
     session.exp_string("Origin:").unwrap();
     session.send_line("origin").unwrap();
     session.exp_string("Query:").unwrap();
-    session.send_line("select * from schema.test_table").unwrap();
+    session
+        .send_line("select * from schema.test_table")
+        .unwrap();
     session.exp_string("Poll interval (seconds):").unwrap();
     session.send_line("10").unwrap();
     session.send("Exit").unwrap();
@@ -119,16 +122,14 @@ fn cli_init_postgres_src() {
     let parsed: Config = toml::from_str(&config_file_contents).unwrap();
     assert_eq!(
         parsed.sources,
-        vec![
-            Source {
-                r#type: "postgres_connector".into(),
-                display_name: "Postgres Source".into(),
-                url: "postgres://postgres_user:password@127.0.0.1:1000/mydb".into(),
-                origin: "origin".into(),
-                query: "select * from schema.test_table".into(),
-                poll_interval: 10,
-            },
-        ]
+        vec![Source {
+            r#type: "postgres_connector".into(),
+            display_name: "Postgres Source".into(),
+            url: "postgres://postgres_user:password@127.0.0.1:1000/mydb".into(),
+            origin: "origin".into(),
+            query: "select * from schema.test_table".into(),
+            poll_interval: 10,
+        },]
     );
     temp_dir.close().unwrap();
 }
@@ -160,7 +161,9 @@ fn cli_init_snowflake_dest() {
     session.send("Add Destination").unwrap();
     session.exp_string("Add Destination").unwrap();
     session.send_line("").unwrap();
-    session.exp_string("What type of destination would you like to add?").unwrap();
+    session
+        .exp_string("What type of destination would you like to add?")
+        .unwrap();
     session.send("Snowflake destination").unwrap();
     session.exp_string("Snowflake destination").unwrap();
     session.send_line("").unwrap();
@@ -196,20 +199,18 @@ fn cli_init_snowflake_dest() {
     let parsed: Config = toml::from_str(&config_file_contents).unwrap();
     assert_eq!(
         parsed.destinations,
-        vec![
-            Destination{
-                r#type: "snowflake".into(),
-                display_name: "Snowflake Destination".into(),
-                username: "username".into(),
-                password: "secret".into(),
-                role: "admin".into(),
-                account_identifier: "myorg-myaccount".into(),
-                warehouse: "whse".into(),
-                database: "mydb".into(),
-                schema: "myschema".into(),
-                truncate: false,
-            }
-        ]
+        vec![Destination {
+            r#type: "snowflake".into(),
+            display_name: "Snowflake Destination".into(),
+            username: "username".into(),
+            password: "secret".into(),
+            role: "admin".into(),
+            account_identifier: "myorg-myaccount".into(),
+            warehouse: "whse".into(),
+            database: "mydb".into(),
+            schema: "myschema".into(),
+            truncate: false,
+        }]
     );
     temp_dir.close().unwrap();
 }
@@ -235,7 +236,9 @@ fn cli_init_file_dest() {
     session.send("Add Destination").unwrap();
     session.exp_string("Add Destination").unwrap();
     session.send_line("").unwrap();
-    session.exp_string("What type of destination would you like to add?").unwrap();
+    session
+        .exp_string("What type of destination would you like to add?")
+        .unwrap();
     session.send("File destination").unwrap();
     session.exp_string("File destination").unwrap();
     session.send_line("").unwrap();
@@ -280,7 +283,9 @@ fn cli_init_file_src() {
     session.send("Add Source").unwrap();
     session.exp_string("Add Source").unwrap();
     session.send_line("").unwrap();
-    session.exp_string("What type of source would you like to add?").unwrap();
+    session
+        .exp_string("What type of source would you like to add?")
+        .unwrap();
     session.send("File source").unwrap();
     session.exp_string("File source").unwrap();
     session.send_line("").unwrap();
@@ -327,7 +332,9 @@ fn cli_init_mysql_src() {
     session.send("Add Source").unwrap();
     session.exp_string("Add Source").unwrap();
     session.send_line("").unwrap();
-    session.exp_string("What type of source would you like to add?").unwrap();
+    session
+        .exp_string("What type of source would you like to add?")
+        .unwrap();
     session.send("MySQL source").unwrap();
     session.exp_string("MySQL source").unwrap();
     session.send_line("").unwrap();
@@ -360,16 +367,14 @@ fn cli_init_mysql_src() {
 
     assert_eq!(
         parsed.sources,
-        vec![
-            Source {
-                r#type: "mysql_connector".into(),
-                display_name: "Mysql Source".into(),
-                url: "mysql://mysql_user:password@127.0.0.1:1000/mydb".into(),
-                origin: "origin".into(),
-                query: "select * from some_table".into(),
-                poll_interval: 10,
-            }
-        ]
+        vec![Source {
+            r#type: "mysql_connector".into(),
+            display_name: "Mysql Source".into(),
+            url: "mysql://mysql_user:password@127.0.0.1:1000/mydb".into(),
+            origin: "origin".into(),
+            query: "select * from some_table".into(),
+            poll_interval: 10,
+        }]
     );
     temp_dir.close().unwrap();
 }
@@ -397,7 +402,9 @@ fn cli_init_excel_src() {
     session.send("Add Source").unwrap();
     session.exp_string("Add Source").unwrap();
     session.send_line("").unwrap();
-    session.exp_string("What type of source would you like to add?").unwrap();
+    session
+        .exp_string("What type of source would you like to add?")
+        .unwrap();
     session.send("Excel source").unwrap();
     session.exp_string("Excel source").unwrap();
     session.send_line("").unwrap();
@@ -422,7 +429,7 @@ fn cli_init_excel_src() {
     assert_eq!(parsed.sources[0].display_name, "Excel");
     assert!(parsed.sources[0].path.ends_with("some_file.xlsx"));
     assert_eq!(parsed.sources[0].sheets, "*");
-    assert_eq!(parsed.sources[0].strict, true);
+    assert!(parsed.sources[0].strict);
 
     temp_dir.close().unwrap();
 }
@@ -449,7 +456,9 @@ fn cli_init_sqlite_src() {
     session.send("Add Source").unwrap();
     session.exp_string("Add Source").unwrap();
     session.send_line("").unwrap();
-    session.exp_string("What type of source would you like to add?").unwrap();
+    session
+        .exp_string("What type of source would you like to add?")
+        .unwrap();
     session.send("SQLite source").unwrap();
     session.exp_string("SQLite source").unwrap();
     session.send_line("").unwrap();
@@ -471,15 +480,13 @@ fn cli_init_sqlite_src() {
     let parsed: Config = toml::from_str(&config_file_contents).unwrap();
     assert_eq!(
         parsed.sources,
-        vec![
-            Source {
-                r#type: "sqlite_connector".into(),
-                display_name: "sqlite".into(),
-                origin: "origin".into(),
-                query: "select * from some_table".into(),
-                path: "data.db".into(),
-            },
-        ]
+        vec![Source {
+            r#type: "sqlite_connector".into(),
+            display_name: "sqlite".into(),
+            origin: "origin".into(),
+            query: "select * from some_table".into(),
+            path: "data.db".into(),
+        },]
     );
     temp_dir.close().unwrap();
 }
@@ -505,7 +512,9 @@ fn cli_init_sqlite_dest() {
     session.send("Add Destination").unwrap();
     session.exp_string("Add Destination").unwrap();
     session.send_line("").unwrap();
-    session.exp_string("What type of destination would you like to add?").unwrap();
+    session
+        .exp_string("What type of destination would you like to add?")
+        .unwrap();
     session.send("SQLite destination").unwrap();
     session.exp_string("SQLite destination").unwrap();
     session.send_line("").unwrap();
@@ -524,15 +533,13 @@ fn cli_init_sqlite_dest() {
     let config_file_contents = std::fs::read_to_string(config_file.path()).unwrap();
     let parsed: Config = toml::from_str(&config_file_contents).unwrap();
     assert_eq!(
-        parsed.destinations, 
-        vec![
-            Destination{
-                r#type: "sqlite_connector".into(),
-                display_name: "sqlite destination".into(),
-                path: "destination.db".into(),
-                truncate: true,
-            }
-        ]
+        parsed.destinations,
+        vec![Destination {
+            r#type: "sqlite_connector".into(),
+            display_name: "sqlite destination".into(),
+            path: "destination.db".into(),
+            truncate: true,
+        }]
     );
     temp_dir.close().unwrap();
 }
@@ -559,7 +566,9 @@ fn cli_init_postgres_dest() {
     session.send("Add Destination").unwrap();
     session.exp_string("Add Destination").unwrap();
     session.send_line("").unwrap();
-    session.exp_string("What type of destination would you like to add?").unwrap();
+    session
+        .exp_string("What type of destination would you like to add?")
+        .unwrap();
     session.send("Postgres destination").unwrap();
     session.exp_string("Postgres destination").unwrap();
     session.send_line("").unwrap();
@@ -620,7 +629,9 @@ fn cli_init_mysql_dest() {
     session.send("Add Destination").unwrap();
     session.exp_string("Add Destination").unwrap();
     session.send_line("").unwrap();
-    session.exp_string("What type of destination would you like to add?").unwrap();
+    session
+        .exp_string("What type of destination would you like to add?")
+        .unwrap();
     session.send("MySQL destination").unwrap();
     session.exp_string("MySQL destination").unwrap();
     session.send_line("").unwrap();
@@ -648,14 +659,12 @@ fn cli_init_mysql_dest() {
     let parsed: Config = toml::from_str(&config_file_contents).unwrap();
     assert_eq!(
         parsed.destinations,
-        vec![
-            Destination{
-                r#type: "mysql_connector".into(),
-                url: "mysql://mysqluser:password@10.0.0.10:1234/mydb".into(),
-                display_name: "mysql".into(),
-                truncate: true,
-            }
-        ]
+        vec![Destination {
+            r#type: "mysql_connector".into(),
+            url: "mysql://mysqluser:password@10.0.0.10:1234/mydb".into(),
+            display_name: "mysql".into(),
+            truncate: true,
+        }]
     );
     temp_dir.close().unwrap();
 }
@@ -682,7 +691,9 @@ fn cli_init_kafka_dest() {
     session.send("Add Destination").unwrap();
     session.exp_string("Add Destination").unwrap();
     session.send_line("").unwrap();
-    session.exp_string("What type of destination would you like to add?").unwrap();
+    session
+        .exp_string("What type of destination would you like to add?")
+        .unwrap();
     session.send("Kafka destination").unwrap();
     session.exp_string("Kafka destination").unwrap();
     session.send_line("").unwrap();

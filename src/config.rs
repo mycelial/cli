@@ -49,10 +49,10 @@ impl Config {
         truncate: bool,
     ) {
         self.add_destination(Destination::sqlite_connector {
-                display_name,
-                path,
-                truncate,
-            });
+            display_name,
+            path,
+            truncate,
+        });
     }
 
     pub fn add_postgres_connector_destination(
@@ -62,10 +62,10 @@ impl Config {
         truncate: bool,
     ) {
         self.add_destination(Destination::postgres_connector {
-                display_name,
-                url,
-                truncate,
-            });
+            display_name,
+            url,
+            truncate,
+        });
     }
 
     pub fn add_mysql_connector_destination(
@@ -74,13 +74,11 @@ impl Config {
         url: String,
         truncate: bool,
     ) {
-        self.add_destination(
-            Destination::mysql_connector {
-                display_name,
-                url,
-                truncate,
-            }
-        );
+        self.add_destination(Destination::mysql_connector {
+            display_name,
+            url,
+            truncate,
+        });
     }
     pub fn add_kafka_destination(&mut self, display_name: String, brokers: String, topic: String) {
         self.add_destination(Destination::kafka {
@@ -148,10 +146,7 @@ impl Config {
     }
 
     pub fn get_node_storage_path(&self) -> Option<String> {
-        match &self.node {
-            Some(node) => Some(node.storage_path.clone()),
-            None => None,
-        }
+        self.node.as_ref().map(|node| node.storage_path.clone())
     }
 
     pub(crate) fn add_postgres_connector_source(
@@ -188,14 +183,18 @@ impl Config {
         })
     }
 
-    fn add_destination(&mut self, destination: Destination)  {
-        self.destinations = Some(self.destinations.take().unwrap_or(vec![]));
-        self.destinations.as_mut().map(|v| v.push(destination));
+    fn add_destination(&mut self, destination: Destination) {
+        self.destinations = Some(self.destinations.take().unwrap_or_default());
+        if let Some(v) = self.destinations.as_mut() {
+            v.push(destination)
+        }
     }
 
     fn add_source(&mut self, source: Source) {
-        self.sources = Some(self.sources.take().unwrap_or(vec![]));
-        self.sources.as_mut().map(|v| v.push(source));
+        self.sources = Some(self.sources.take().unwrap_or_default());
+        if let Some(v) = self.sources.as_mut() {
+            v.push(source)
+        }
     }
 }
 
