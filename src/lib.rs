@@ -109,10 +109,8 @@ pub async fn destroy(daemon: bool, control_plane: bool) -> Result<()> {
 
 fn storage_path(config_file_name: &str) -> Option<String> {
     match Configuration::load(config_file_name) {
-        Ok(config) => {
-            return config.get_node_storage_path();
-        }
-        Err(_error) => return None,
+        Ok(config) => config.get_node_storage_path(),
+        Err(_error) => None,
     }
 }
 
@@ -206,7 +204,6 @@ fn save_pid(executable: Executable, pid: u32) -> Result<()> {
     create_pid_file_dir()?;
     let file_name = get_pid_file(&executable);
     let mut file = std::fs::OpenOptions::new()
-        .write(true)
         .append(true)
         .create(true)
         .open(file_name)?;
@@ -384,13 +381,13 @@ pub async fn download_and_unarchive(url: &str, file_name: &str) -> Result<()> {
 fn prompt_sqlite_source(config: &mut Configuration) -> Result<()> {
     let display_name: String = Input::with_theme(&ColorfulTheme::default())
         .with_prompt("Display name:")
-        .default("SQLite Append Only Source".to_string())
+        .default("SQLite Source".to_string())
         .allow_empty(false)
         .interact_text()
         .unwrap();
-    let tables: String = Input::with_theme(&ColorfulTheme::default())
-        .with_prompt("Tables:")
-        .default("*".to_string())
+    let origin: String = Input::with_theme(&ColorfulTheme::default())
+        .with_prompt("Origin:")
+        .default("origin".to_string())
         .allow_empty(false)
         .interact_text()
         .unwrap();
@@ -400,14 +397,20 @@ fn prompt_sqlite_source(config: &mut Configuration) -> Result<()> {
         .allow_empty(false)
         .interact_text()
         .unwrap();
-    config.add_sqlite_connector_source(display_name, tables, path);
+    let query: String = Input::with_theme(&ColorfulTheme::default())
+        .with_prompt("Query:")
+        .default("select * from test".to_string())
+        .allow_empty(false)
+        .interact_text()
+        .unwrap();
+    config.add_sqlite_connector_source(display_name, origin, path, query);
     Ok(())
 }
 
 fn prompt_sqlite_destination(config: &mut Configuration) -> Result<()> {
     let display_name: String = Input::with_theme(&ColorfulTheme::default())
         .with_prompt("Display name:")
-        .default("SQLite Append Only Destination".to_string())
+        .default("SQLite Destination".to_string())
         .allow_empty(false)
         .interact_text()
         .unwrap();
@@ -417,14 +420,20 @@ fn prompt_sqlite_destination(config: &mut Configuration) -> Result<()> {
         .allow_empty(false)
         .interact_text()
         .unwrap();
-    config.add_sqlite_connector_destination(display_name, path);
+    let truncate: bool = Input::with_theme(&ColorfulTheme::default())
+        .with_prompt("Truncate:")
+        .default(false)
+        .allow_empty(false)
+        .interact_text()
+        .unwrap();
+    config.add_sqlite_connector_destination(display_name, path, truncate);
     Ok(())
 }
 
 fn prompt_postgres_destination(config: &mut Configuration) -> Result<()> {
     let display_name: String = Input::with_theme(&ColorfulTheme::default())
         .with_prompt("Display name:")
-        .default("Postgres Append Only Destination".to_string())
+        .default("Postgres destination".to_string())
         .allow_empty(false)
         .interact_text()
         .unwrap();
@@ -451,10 +460,21 @@ fn prompt_postgres_destination(config: &mut Configuration) -> Result<()> {
         .allow_empty(false)
         .interact_text()
         .unwrap();
-
     let database: String = Input::with_theme(&ColorfulTheme::default())
         .with_prompt("Database name:")
         .default("db".to_string())
+        .allow_empty(false)
+        .interact_text()
+        .unwrap();
+    let schema: String = Input::with_theme(&ColorfulTheme::default())
+        .with_prompt("Schema:")
+        .default("public".to_string())
+        .allow_empty(false)
+        .interact_text()
+        .unwrap();
+    let truncate: bool = Input::with_theme(&ColorfulTheme::default())
+        .with_prompt("Truncate:")
+        .default(false)
         .allow_empty(false)
         .interact_text()
         .unwrap();
@@ -462,8 +482,7 @@ fn prompt_postgres_destination(config: &mut Configuration) -> Result<()> {
         "postgres://{}:{}@{}:{}/{}",
         user, password, address, port, database
     );
-    config.add_postgres_connector_destination(display_name, postgres_url);
-
+    config.add_postgres_connector_destination(display_name, postgres_url, schema, truncate);
     Ok(())
 }
 
@@ -527,13 +546,13 @@ fn prompt_postgres_source(config: &mut Configuration) -> Result<()> {
         .unwrap();
     let origin: String = Input::with_theme(&ColorfulTheme::default())
         .with_prompt("Origin:")
-        .default("test".to_string())
+        .default("origin".to_string())
         .allow_empty(false)
         .interact_text()
         .unwrap();
     let query: String = Input::with_theme(&ColorfulTheme::default())
         .with_prompt("Query:")
-        .default("*".to_string())
+        .default("select * from test".to_string())
         .allow_empty(false)
         .interact_text()
         .unwrap();
@@ -613,15 +632,15 @@ fn prompt_mysql_source(config: &mut Configuration) -> Result<()> {
         .allow_empty(false)
         .interact_text()
         .unwrap();
-    let schema: String = Input::with_theme(&ColorfulTheme::default())
-        .with_prompt("Schema:")
-        .default("public".to_string())
+    let origin: String = Input::with_theme(&ColorfulTheme::default())
+        .with_prompt("Origin:")
+        .default("origin".to_string())
         .allow_empty(false)
         .interact_text()
         .unwrap();
-    let tables: String = Input::with_theme(&ColorfulTheme::default())
-        .with_prompt("Tables:")
-        .default("*".to_string())
+    let query: String = Input::with_theme(&ColorfulTheme::default())
+        .with_prompt("Query:")
+        .default("select * from test".to_string())
         .allow_empty(false)
         .interact_text()
         .unwrap();
@@ -635,14 +654,14 @@ fn prompt_mysql_source(config: &mut Configuration) -> Result<()> {
         "mysql://{}:{}@{}:{}/{}",
         user, password, address, port, database
     );
-    config.add_mysql_connector_source(display_name, mysql_url, schema, tables, poll_interval);
+    config.add_mysql_connector_source(display_name, mysql_url, origin, query, poll_interval);
     Ok(())
 }
 
 fn prompt_mysql_destination(config: &mut Configuration) -> Result<()> {
     let display_name: String = Input::with_theme(&ColorfulTheme::default())
         .with_prompt("Display name:")
-        .default("MySQL Append Only Destination".to_string())
+        .default("MySQL destination".to_string())
         .allow_empty(false)
         .interact_text()
         .unwrap();
@@ -674,11 +693,18 @@ fn prompt_mysql_destination(config: &mut Configuration) -> Result<()> {
         .allow_empty(false)
         .interact_text()
         .unwrap();
-    let postgres_url = format!(
+    let truncate: bool = Input::with_theme(&ColorfulTheme::default())
+        .with_prompt("Truncate:")
+        .default(false)
+        .allow_empty(false)
+        .interact_text()
+        .unwrap();
+
+    let mysql_url = format!(
         "mysql://{}:{}@{}:{}/{}",
         user, password, address, port, database
     );
-    config.add_mysql_connector_destination(display_name, postgres_url);
+    config.add_mysql_connector_destination(display_name, mysql_url, truncate);
     Ok(())
 }
 fn prompt_file_source(config: &mut Configuration) -> Result<()> {
@@ -762,6 +788,13 @@ fn prompt_snowflake_destination(config: &mut Configuration) -> Result<()> {
         .interact_text()
         .unwrap();
     let account_identifier = format!("{}-{}", organization_name, account_name);
+    let truncate: bool = Input::with_theme(&ColorfulTheme::default())
+        .with_prompt("Truncate:")
+        .default(false)
+        .allow_empty(false)
+        .interact_text()
+        .unwrap();
+
     config.add_snowflake_connector_destination(
         display_name,
         username,
@@ -771,6 +804,7 @@ fn prompt_snowflake_destination(config: &mut Configuration) -> Result<()> {
         warehouse,
         database,
         schema,
+        truncate,
     );
     Ok(())
 }
@@ -788,7 +822,7 @@ fn config_file_action(config_file_name: String) -> Result<(ConfigAction, std::st
     const RENAME: &str = "Rename file";
     let options = vec![OVERWRITE, APPEND, RENAME];
     if !config_path.exists() {
-        return Ok((ConfigAction::Create, config_file_name));
+        Ok((ConfigAction::Create, config_file_name))
     } else {
         let answer = FuzzySelect::with_theme(&ColorfulTheme::default())
             .with_prompt(&format!(
@@ -800,13 +834,9 @@ fn config_file_action(config_file_name: String) -> Result<(ConfigAction, std::st
             .unwrap();
         match answer {
             // OVERWRITE
-            0 => {
-                return Ok((ConfigAction::Create, config_file_name));
-            }
+            0 => Ok((ConfigAction::Create, config_file_name)),
             // APPEND
-            1 => {
-                return Ok((ConfigAction::Append, config_file_name));
-            }
+            1 => Ok((ConfigAction::Append, config_file_name)),
             // RENAME
             2 => {
                 let new_config_file_name: String = Input::with_theme(&ColorfulTheme::default())
@@ -816,7 +846,7 @@ fn config_file_action(config_file_name: String) -> Result<(ConfigAction, std::st
                     .interact_text()
                     .unwrap();
                 let result = config_file_action(new_config_file_name)?;
-                return Ok(result);
+                Ok(result)
             }
             _ => {
                 panic!("Unknown config file action");
@@ -839,15 +869,10 @@ pub async fn create_config(
     };
     match action {
         ConfigAction::Create => {
-            return do_create_config(config_file_name, database_storage_path, endpoint, token)
-                .await;
+            do_create_config(config_file_name, database_storage_path, endpoint, token).await
         }
-        ConfigAction::Append => {
-            return do_append_config(config_file_name).await;
-        }
-        ConfigAction::UseExisting => {
-            return Ok(());
-        }
+        ConfigAction::Append => do_append_config(config_file_name).await,
+        ConfigAction::UseExisting => Ok(()),
     }
 }
 
@@ -856,8 +881,8 @@ async fn do_append_config(config_file_name: String) -> Result<()> {
         Ok(mut config) => {
             source_destination_loop(&mut config, config_file_name)?;
         }
-        Err(_error) => {
-            panic!("error loading config file");
+        Err(error) => {
+            panic!("error loading config file: {}", error);
         }
     }
     Ok(())
@@ -923,10 +948,10 @@ async fn do_create_config(
 }
 
 fn source_prompts(config: &mut Configuration, config_file_name: Option<String>) -> Result<()> {
-    const SQLITE_SOURCE: &str = "Append only SQLite source";
+    const SQLITE_SOURCE: &str = "SQLite source";
     const EXCEL_SOURCE: &str = "Excel source";
-    const POSTGRES_SOURCE: &str = "Append only Postgres source";
-    const MYSQL_SOURCE: &str = "Append only MySQL source";
+    const POSTGRES_SOURCE: &str = "Postgres source";
+    const MYSQL_SOURCE: &str = "MySQL source";
     const FILE_SOURCE: &str = "File source";
     const EXIT: &str = "Exit";
     const CANCEL: &str = "Cancel";
@@ -1038,9 +1063,9 @@ fn source_prompts(config: &mut Configuration, config_file_name: Option<String>) 
 }
 
 fn destination_prompts(config: &mut Configuration, config_file_name: Option<String>) -> Result<()> {
-    const SQLITE_DESTINATION: &str = "Append only SQLite destination";
-    const POSTGRES_DESTINATION: &str = "Append only Postgres destination";
-    const MYSQL_DESTINATION: &str = "Append only MySQL destination";
+    const SQLITE_DESTINATION: &str = "SQLite destination";
+    const POSTGRES_DESTINATION: &str = "Postgres destination";
+    const MYSQL_DESTINATION: &str = "MySQL destination";
     const KAFKA_DESTINATION: &str = "Kafka destination";
     const SNOWFLAKE_DESTINATION: &str = "Snowflake destination";
     const FILE_DESTINATION: &str = "File destination";
@@ -1167,7 +1192,7 @@ fn destination_prompts(config: &mut Configuration, config_file_name: Option<Stri
 pub async fn add_source(config_file_name: &str) -> Result<()> {
     let config_file_name_path = Path::new(config_file_name);
     if config_file_name_path.exists() {
-        match Configuration::load(&config_file_name) {
+        match Configuration::load(config_file_name) {
             Ok(mut config) => {
                 source_prompts(&mut config, Some(config_file_name.to_string()))?;
             }
@@ -1184,7 +1209,7 @@ pub async fn add_source(config_file_name: &str) -> Result<()> {
 pub async fn add_destination(config_file_name: &str) -> Result<()> {
     let config_file_name_path = Path::new(config_file_name);
     if config_file_name_path.exists() {
-        match Configuration::load(&config_file_name) {
+        match Configuration::load(config_file_name) {
             Ok(mut config) => {
                 destination_prompts(&mut config, Some(config_file_name.to_string()))?;
             }

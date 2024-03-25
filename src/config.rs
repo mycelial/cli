@@ -30,71 +30,66 @@ impl Config {
     pub fn add_sqlite_connector_source(
         &mut self,
         display_name: String,
-        tables: String,
+        origin: String,
         path: String,
+        query: String,
     ) {
-        match &mut self.sources {
-            Some(sources) => sources.push(Source::sqlite_connector {
-                display_name,
-                tables,
-                path,
-            }),
-            None => {
-                self.sources = Some(vec![Source::sqlite_connector {
-                    display_name,
-                    tables,
-                    path,
-                }])
-            }
-        }
+        self.add_source(Source::sqlite_connector {
+            display_name,
+            origin,
+            path,
+            query,
+        });
     }
-    pub fn add_sqlite_connector_destination(&mut self, display_name: String, path: String) {
-        match &mut self.destinations {
-            Some(destinations) => {
-                destinations.push(Destination::sqlite_connector { display_name, path })
-            }
-            None => {
-                self.destinations = Some(vec![Destination::sqlite_connector { display_name, path }])
-            }
-        }
+
+    pub fn add_sqlite_connector_destination(
+        &mut self,
+        display_name: String,
+        path: String,
+        truncate: bool,
+    ) {
+        self.add_destination(Destination::sqlite_connector {
+            display_name,
+            path,
+            truncate,
+        });
     }
-    pub fn add_postgres_connector_destination(&mut self, display_name: String, url: String) {
-        match &mut self.destinations {
-            Some(destinations) => {
-                destinations.push(Destination::postgres_connector { display_name, url })
-            }
-            None => {
-                self.destinations =
-                    Some(vec![Destination::postgres_connector { display_name, url }])
-            }
-        }
+
+    pub fn add_postgres_connector_destination(
+        &mut self,
+        display_name: String,
+        url: String,
+        schema: String,
+        truncate: bool,
+    ) {
+        self.add_destination(Destination::postgres_connector {
+            display_name,
+            url,
+            schema,
+            truncate,
+        });
     }
-    pub fn add_mysql_connector_destination(&mut self, display_name: String, url: String) {
-        match &mut self.destinations {
-            Some(destinations) => {
-                destinations.push(Destination::mysql_connector { display_name, url })
-            }
-            None => {
-                self.destinations = Some(vec![Destination::mysql_connector { display_name, url }])
-            }
-        }
+
+    pub fn add_mysql_connector_destination(
+        &mut self,
+        display_name: String,
+        url: String,
+        truncate: bool,
+    ) {
+        self.add_destination(Destination::mysql_connector {
+            display_name,
+            url,
+            truncate,
+        });
     }
     pub fn add_kafka_destination(&mut self, display_name: String, brokers: String, topic: String) {
-        match &mut self.destinations {
-            Some(destinations) => destinations.push(Destination::kafka {
-                display_name,
-                brokers,
-                topic,
-            }),
-            None => {
-                self.destinations = Some(vec![Destination::kafka {
-                    display_name,
-                    brokers,
-                    topic,
-                }])
-            }
-        }
+        self.add_destination(Destination::kafka {
+            display_name,
+            brokers,
+            topic,
+        });
     }
+
     pub fn add_excel_connector_source(
         &mut self,
         display_name: String,
@@ -102,34 +97,18 @@ impl Config {
         sheets: String,
         strict: bool,
     ) {
-        match &mut self.sources {
-            Some(sources) => sources.push(Source::excel_connector {
-                display_name,
-                path,
-                sheets,
-                strict,
-            }),
-            None => {
-                self.sources = Some(vec![Source::excel_connector {
-                    display_name,
-                    path,
-                    sheets,
-                    strict,
-                }])
-            }
-        }
+        self.add_source(Source::excel_connector {
+            display_name,
+            path,
+            sheets,
+            strict,
+        });
     }
     pub fn add_file_source(&mut self, display_name: String, path: String) {
-        match &mut self.sources {
-            Some(sources) => sources.push(Source::file { display_name, path }),
-            None => self.sources = Some(vec![Source::file { display_name, path }]),
-        }
+        self.add_source(Source::file { display_name, path });
     }
     pub fn add_file_destination(&mut self, display_name: String, path: String) {
-        match &mut self.destinations {
-            Some(destinations) => destinations.push(Destination::file { display_name, path }),
-            None => self.destinations = Some(vec![Destination::file { display_name, path }]),
-        }
+        self.add_destination(Destination::file { display_name, path });
     }
     pub fn add_snowflake_connector_destination(
         &mut self,
@@ -141,31 +120,19 @@ impl Config {
         warehouse: String,
         database: String,
         schema: String,
+        truncate: bool,
     ) {
-        match &mut self.destinations {
-            Some(destinations) => destinations.push(Destination::snowflake {
-                display_name,
-                username,
-                password,
-                role,
-                account_identifier,
-                warehouse,
-                database,
-                schema,
-            }),
-            None => {
-                self.destinations = Some(vec![Destination::snowflake {
-                    display_name,
-                    username,
-                    password,
-                    role,
-                    account_identifier,
-                    warehouse,
-                    database,
-                    schema,
-                }])
-            }
-        }
+        self.add_destination(Destination::snowflake {
+            display_name,
+            username,
+            password,
+            role,
+            account_identifier,
+            warehouse,
+            database,
+            schema,
+            truncate,
+        });
     }
     pub fn save<T: AsRef<str>>(&self, path: T) -> Result<(), Box<dyn std::error::Error>> {
         let path = path.as_ref();
@@ -173,16 +140,15 @@ impl Config {
         fs::write(path, toml)?;
         Ok(())
     }
+
     pub fn load(path: &str) -> Result<Config, Box<dyn std::error::Error>> {
         let contents = fs::read_to_string(path)?;
         let config: Config = toml::from_str(&contents)?;
         Ok(config)
     }
+
     pub fn get_node_storage_path(&self) -> Option<String> {
-        match &self.node {
-            Some(node) => Some(node.storage_path.clone()),
-            None => None,
-        }
+        self.node.as_ref().map(|node| node.storage_path.clone())
     }
 
     pub(crate) fn add_postgres_connector_source(
@@ -193,51 +159,43 @@ impl Config {
         query: String,
         poll_interval: i32,
     ) {
-        match &mut self.sources {
-            Some(sources) => sources.push(Source::postgres_connector {
-                display_name,
-                url,
-                origin,
-                query,
-                poll_interval,
-            }),
-            None => {
-                self.sources = Some(vec![Source::postgres_connector {
-                    display_name,
-                    url,
-                    origin,
-                    query,
-                    poll_interval,
-                }])
-            }
-        }
+        self.add_source(Source::postgres_connector {
+            display_name,
+            url,
+            origin,
+            query,
+            poll_interval,
+        });
     }
 
     pub(crate) fn add_mysql_connector_source(
         &mut self,
         display_name: String,
         url: String,
-        schema: String,
-        tables: String,
+        origin: String,
+        query: String,
         poll_interval: i32,
     ) {
-        match &mut self.sources {
-            Some(sources) => sources.push(Source::mysql_connector {
-                display_name,
-                url,
-                schema,
-                tables,
-                poll_interval,
-            }),
-            None => {
-                self.sources = Some(vec![Source::mysql_connector {
-                    display_name,
-                    url,
-                    schema,
-                    tables,
-                    poll_interval,
-                }])
-            }
+        self.add_source(Source::mysql_connector {
+            display_name,
+            url,
+            origin,
+            query,
+            poll_interval,
+        })
+    }
+
+    fn add_destination(&mut self, destination: Destination) {
+        self.destinations = Some(self.destinations.take().unwrap_or_default());
+        if let Some(v) = self.destinations.as_mut() {
+            v.push(destination)
+        }
+    }
+
+    fn add_source(&mut self, source: Source) {
+        self.sources = Some(self.sources.take().unwrap_or_default());
+        if let Some(v) = self.sources.as_mut() {
+            v.push(source)
         }
     }
 }
@@ -328,6 +286,7 @@ enum Destination {
     postgres_connector {
         display_name: String,
         url: String,
+        schema: String,
         truncate: bool,
     },
     mysql_connector {
