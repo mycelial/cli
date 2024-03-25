@@ -552,12 +552,13 @@ fn cli_init_postgres_dest() {
         destinations: Vec<Destination>,
     }
 
-    #[derive(Deserialize)]
+    #[derive(Deserialize, PartialEq, Debug)]
     struct Destination {
-        #[serde(rename = "type")]
-        destination_type: String,
+        r#type: String,
         display_name: String,
+        schema: String,
         url: String,
+        truncate: bool,
     }
     let temp_dir = assert_fs::TempDir::new().unwrap();
 
@@ -584,6 +585,8 @@ fn cli_init_postgres_dest() {
     session.send_line("1234").unwrap();
     session.exp_string("Database name:").unwrap();
     session.send_line("mydb").unwrap();
+    session.exp_string("Schema:").unwrap();
+    session.send_line("some_schema").unwrap();
     session.exp_string("Truncate:").unwrap();
     session.send_line("true").unwrap();
     session.send("Exit").unwrap();
@@ -594,17 +597,16 @@ fn cli_init_postgres_dest() {
     let config_file = temp_dir.child("config.toml");
     let config_file_contents = std::fs::read_to_string(config_file.path()).unwrap();
     let parsed: Config = toml::from_str(&config_file_contents).unwrap();
-    assert_eq!(parsed.destinations.len(), 1);
     assert_eq!(
-        parsed.destinations[0].destination_type,
-        "postgres_connector"
+        parsed.destinations,
+        vec![Destination {
+            r#type: "postgres_connector".into(),
+            display_name: "postgres".into(),
+            url: "postgres://pguser:password@10.0.0.10:1234/mydb".into(),
+            schema: "some_schema".into(),
+            truncate: true,
+        }]
     );
-    assert_eq!(parsed.destinations[0].display_name, "postgres");
-    assert_eq!(
-        parsed.destinations[0].url,
-        "postgres://pguser:password@10.0.0.10:1234/mydb"
-    );
-
     temp_dir.close().unwrap();
 }
 

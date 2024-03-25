@@ -59,11 +59,13 @@ impl Config {
         &mut self,
         display_name: String,
         url: String,
+        schema: String,
         truncate: bool,
     ) {
         self.add_destination(Destination::postgres_connector {
             display_name,
             url,
+            schema,
             truncate,
         });
     }
@@ -284,6 +286,7 @@ enum Destination {
     postgres_connector {
         display_name: String,
         url: String,
+        schema: String,
         truncate: bool,
     },
     mysql_connector {

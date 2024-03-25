@@ -466,6 +466,12 @@ fn prompt_postgres_destination(config: &mut Configuration) -> Result<()> {
         .allow_empty(false)
         .interact_text()
         .unwrap();
+    let schema: String = Input::with_theme(&ColorfulTheme::default())
+        .with_prompt("Schema:")
+        .default("public".to_string())
+        .allow_empty(false)
+        .interact_text()
+        .unwrap();
     let truncate: bool = Input::with_theme(&ColorfulTheme::default())
         .with_prompt("Truncate:")
         .default(false)
@@ -476,7 +482,7 @@ fn prompt_postgres_destination(config: &mut Configuration) -> Result<()> {
         "postgres://{}:{}@{}:{}/{}",
         user, password, address, port, database
     );
-    config.add_postgres_connector_destination(display_name, postgres_url, truncate);
+    config.add_postgres_connector_destination(display_name, postgres_url, schema, truncate);
     Ok(())
 }
 
@@ -875,8 +881,8 @@ async fn do_append_config(config_file_name: String) -> Result<()> {
         Ok(mut config) => {
             source_destination_loop(&mut config, config_file_name)?;
         }
-        Err(_error) => {
-            panic!("error loading config file");
+        Err(error) => {
+            panic!("error loading config file: {}", error);
         }
     }
     Ok(())
