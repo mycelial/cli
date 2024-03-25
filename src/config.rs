@@ -34,7 +34,7 @@ impl Config {
         path: String,
         query: String,
     ) {
-        self.get_mut_sources().push(Source::sqlite_connector {
+        self.add_source(Source::sqlite_connector {
             display_name,
             origin,
             path,
@@ -48,8 +48,7 @@ impl Config {
         path: String,
         truncate: bool,
     ) {
-        self.get_mut_destinations()
-            .push(Destination::sqlite_connector {
+        self.add_destination(Destination::sqlite_connector {
                 display_name,
                 path,
                 truncate,
@@ -62,8 +61,7 @@ impl Config {
         url: String,
         truncate: bool,
     ) {
-        self.get_mut_destinations()
-            .push(Destination::postgres_connector {
+        self.add_destination(Destination::postgres_connector {
                 display_name,
                 url,
                 truncate,
@@ -76,15 +74,16 @@ impl Config {
         url: String,
         truncate: bool,
     ) {
-        self.get_mut_destinations()
-            .push(Destination::mysql_connector {
+        self.add_destination(
+            Destination::mysql_connector {
                 display_name,
                 url,
                 truncate,
-            });
+            }
+        );
     }
     pub fn add_kafka_destination(&mut self, display_name: String, brokers: String, topic: String) {
-        self.get_mut_destinations().push(Destination::kafka {
+        self.add_destination(Destination::kafka {
             display_name,
             brokers,
             topic,
@@ -98,7 +97,7 @@ impl Config {
         sheets: String,
         strict: bool,
     ) {
-        self.get_mut_sources().push(Source::excel_connector {
+        self.add_source(Source::excel_connector {
             display_name,
             path,
             sheets,
@@ -106,12 +105,10 @@ impl Config {
         });
     }
     pub fn add_file_source(&mut self, display_name: String, path: String) {
-        self.get_mut_sources()
-            .push(Source::file { display_name, path });
+        self.add_source(Source::file { display_name, path });
     }
     pub fn add_file_destination(&mut self, display_name: String, path: String) {
-        self.get_mut_destinations()
-            .push(Destination::file { display_name, path });
+        self.add_destination(Destination::file { display_name, path });
     }
     pub fn add_snowflake_connector_destination(
         &mut self,
@@ -125,7 +122,7 @@ impl Config {
         schema: String,
         truncate: bool,
     ) {
-        self.get_mut_destinations().push(Destination::snowflake {
+        self.add_destination(Destination::snowflake {
             display_name,
             username,
             password,
@@ -165,7 +162,7 @@ impl Config {
         query: String,
         poll_interval: i32,
     ) {
-        self.get_mut_sources().push(Source::postgres_connector {
+        self.add_source(Source::postgres_connector {
             display_name,
             url,
             origin,
@@ -182,7 +179,7 @@ impl Config {
         query: String,
         poll_interval: i32,
     ) {
-        self.get_mut_sources().push(Source::mysql_connector {
+        self.add_source(Source::mysql_connector {
             display_name,
             url,
             origin,
@@ -191,14 +188,14 @@ impl Config {
         })
     }
 
-    fn get_mut_destinations(&mut self) -> &mut Vec<Destination> {
+    fn add_destination(&mut self, destination: Destination)  {
         self.destinations = Some(self.destinations.take().unwrap_or(vec![]));
-        self.destinations.as_mut().unwrap()
+        self.destinations.as_mut().map(|v| v.push(destination));
     }
 
-    fn get_mut_sources(&mut self) -> &mut Vec<Source> {
+    fn add_source(&mut self, source: Source) {
         self.sources = Some(self.sources.take().unwrap_or(vec![]));
-        self.sources.as_mut().unwrap()
+        self.sources.as_mut().map(|v| v.push(source));
     }
 }
 

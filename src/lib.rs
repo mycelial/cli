@@ -384,7 +384,7 @@ pub async fn download_and_unarchive(url: &str, file_name: &str) -> Result<()> {
 fn prompt_sqlite_source(config: &mut Configuration) -> Result<()> {
     let display_name: String = Input::with_theme(&ColorfulTheme::default())
         .with_prompt("Display name:")
-        .default("SQLite Append Only Source".to_string())
+        .default("SQLite Source".to_string())
         .allow_empty(false)
         .interact_text()
         .unwrap();
@@ -413,7 +413,7 @@ fn prompt_sqlite_source(config: &mut Configuration) -> Result<()> {
 fn prompt_sqlite_destination(config: &mut Configuration) -> Result<()> {
     let display_name: String = Input::with_theme(&ColorfulTheme::default())
         .with_prompt("Display name:")
-        .default("SQLite Append Only Destination".to_string())
+        .default("SQLite Destination".to_string())
         .allow_empty(false)
         .interact_text()
         .unwrap();
@@ -436,7 +436,7 @@ fn prompt_sqlite_destination(config: &mut Configuration) -> Result<()> {
 fn prompt_postgres_destination(config: &mut Configuration) -> Result<()> {
     let display_name: String = Input::with_theme(&ColorfulTheme::default())
         .with_prompt("Display name:")
-        .default("Postgres Append Only Destination".to_string())
+        .default("Postgres destination".to_string())
         .allow_empty(false)
         .interact_text()
         .unwrap();
@@ -463,16 +463,15 @@ fn prompt_postgres_destination(config: &mut Configuration) -> Result<()> {
         .allow_empty(false)
         .interact_text()
         .unwrap();
-
-    let truncate: bool = Input::with_theme(&ColorfulTheme::default())
-        .with_prompt("Truncate:")
-        .default(false)
-        .allow_empty(false)
-        .interact_text()
-        .unwrap();
     let database: String = Input::with_theme(&ColorfulTheme::default())
         .with_prompt("Database name:")
         .default("db".to_string())
+        .allow_empty(false)
+        .interact_text()
+        .unwrap();
+    let truncate: bool = Input::with_theme(&ColorfulTheme::default())
+        .with_prompt("Truncate:")
+        .default(false)
         .allow_empty(false)
         .interact_text()
         .unwrap();
@@ -544,13 +543,13 @@ fn prompt_postgres_source(config: &mut Configuration) -> Result<()> {
         .unwrap();
     let origin: String = Input::with_theme(&ColorfulTheme::default())
         .with_prompt("Origin:")
-        .default("test".to_string())
+        .default("origin".to_string())
         .allow_empty(false)
         .interact_text()
         .unwrap();
     let query: String = Input::with_theme(&ColorfulTheme::default())
         .with_prompt("Query:")
-        .default("*".to_string())
+        .default("select * from test".to_string())
         .allow_empty(false)
         .interact_text()
         .unwrap();
@@ -659,7 +658,7 @@ fn prompt_mysql_source(config: &mut Configuration) -> Result<()> {
 fn prompt_mysql_destination(config: &mut Configuration) -> Result<()> {
     let display_name: String = Input::with_theme(&ColorfulTheme::default())
         .with_prompt("Display name:")
-        .default("MySQL Append Only Destination".to_string())
+        .default("MySQL destination".to_string())
         .allow_empty(false)
         .interact_text()
         .unwrap();
@@ -955,10 +954,10 @@ async fn do_create_config(
 }
 
 fn source_prompts(config: &mut Configuration, config_file_name: Option<String>) -> Result<()> {
-    const SQLITE_SOURCE: &str = "Append only SQLite source";
+    const SQLITE_SOURCE: &str = "SQLite source";
     const EXCEL_SOURCE: &str = "Excel source";
-    const POSTGRES_SOURCE: &str = "Append only Postgres source";
-    const MYSQL_SOURCE: &str = "Append only MySQL source";
+    const POSTGRES_SOURCE: &str = "Postgres source";
+    const MYSQL_SOURCE: &str = "MySQL source";
     const FILE_SOURCE: &str = "File source";
     const EXIT: &str = "Exit";
     const CANCEL: &str = "Cancel";
@@ -1070,9 +1069,9 @@ fn source_prompts(config: &mut Configuration, config_file_name: Option<String>) 
 }
 
 fn destination_prompts(config: &mut Configuration, config_file_name: Option<String>) -> Result<()> {
-    const SQLITE_DESTINATION: &str = "Append only SQLite destination";
-    const POSTGRES_DESTINATION: &str = "Append only Postgres destination";
-    const MYSQL_DESTINATION: &str = "Append only MySQL destination";
+    const SQLITE_DESTINATION: &str = "SQLite destination";
+    const POSTGRES_DESTINATION: &str = "Postgres destination";
+    const MYSQL_DESTINATION: &str = "MySQL destination";
     const KAFKA_DESTINATION: &str = "Kafka destination";
     const SNOWFLAKE_DESTINATION: &str = "Snowflake destination";
     const FILE_DESTINATION: &str = "File destination";
