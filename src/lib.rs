@@ -388,9 +388,9 @@ fn prompt_sqlite_source(config: &mut Configuration) -> Result<()> {
         .allow_empty(false)
         .interact_text()
         .unwrap();
-    let tables: String = Input::with_theme(&ColorfulTheme::default())
-        .with_prompt("Tables:")
-        .default("*".to_string())
+    let origin: String = Input::with_theme(&ColorfulTheme::default())
+        .with_prompt("Origin:")
+        .default("origin".to_string())
         .allow_empty(false)
         .interact_text()
         .unwrap();
@@ -400,7 +400,13 @@ fn prompt_sqlite_source(config: &mut Configuration) -> Result<()> {
         .allow_empty(false)
         .interact_text()
         .unwrap();
-    config.add_sqlite_connector_source(display_name, tables, path);
+    let query: String = Input::with_theme(&ColorfulTheme::default())
+        .with_prompt("Query:")
+        .default("select * from test".to_string())
+        .allow_empty(false)
+        .interact_text()
+        .unwrap();
+    config.add_sqlite_connector_source(display_name, origin, path, query);
     Ok(())
 }
 
@@ -417,7 +423,13 @@ fn prompt_sqlite_destination(config: &mut Configuration) -> Result<()> {
         .allow_empty(false)
         .interact_text()
         .unwrap();
-    config.add_sqlite_connector_destination(display_name, path);
+    let truncate: bool = Input::with_theme(&ColorfulTheme::default())
+        .with_prompt("Truncate:")
+        .default(false)
+        .allow_empty(false)
+        .interact_text()
+        .unwrap();
+    config.add_sqlite_connector_destination(display_name, path, truncate);
     Ok(())
 }
 
@@ -452,6 +464,12 @@ fn prompt_postgres_destination(config: &mut Configuration) -> Result<()> {
         .interact_text()
         .unwrap();
 
+    let truncate: bool = Input::with_theme(&ColorfulTheme::default())
+        .with_prompt("Truncate:")
+        .default(false)
+        .allow_empty(false)
+        .interact_text()
+        .unwrap();
     let database: String = Input::with_theme(&ColorfulTheme::default())
         .with_prompt("Database name:")
         .default("db".to_string())
@@ -462,8 +480,7 @@ fn prompt_postgres_destination(config: &mut Configuration) -> Result<()> {
         "postgres://{}:{}@{}:{}/{}",
         user, password, address, port, database
     );
-    config.add_postgres_connector_destination(display_name, postgres_url);
-
+    config.add_postgres_connector_destination(display_name, postgres_url, truncate);
     Ok(())
 }
 
@@ -613,15 +630,15 @@ fn prompt_mysql_source(config: &mut Configuration) -> Result<()> {
         .allow_empty(false)
         .interact_text()
         .unwrap();
-    let schema: String = Input::with_theme(&ColorfulTheme::default())
-        .with_prompt("Schema:")
-        .default("public".to_string())
+    let origin: String = Input::with_theme(&ColorfulTheme::default())
+        .with_prompt("Origin:")
+        .default("origin".to_string())
         .allow_empty(false)
         .interact_text()
         .unwrap();
-    let tables: String = Input::with_theme(&ColorfulTheme::default())
-        .with_prompt("Tables:")
-        .default("*".to_string())
+    let query: String = Input::with_theme(&ColorfulTheme::default())
+        .with_prompt("Query:")
+        .default("select * from test".to_string())
         .allow_empty(false)
         .interact_text()
         .unwrap();
@@ -635,7 +652,7 @@ fn prompt_mysql_source(config: &mut Configuration) -> Result<()> {
         "mysql://{}:{}@{}:{}/{}",
         user, password, address, port, database
     );
-    config.add_mysql_connector_source(display_name, mysql_url, schema, tables, poll_interval);
+    config.add_mysql_connector_source(display_name, mysql_url, origin, query, poll_interval);
     Ok(())
 }
 
@@ -674,11 +691,18 @@ fn prompt_mysql_destination(config: &mut Configuration) -> Result<()> {
         .allow_empty(false)
         .interact_text()
         .unwrap();
-    let postgres_url = format!(
+    let truncate: bool = Input::with_theme(&ColorfulTheme::default())
+        .with_prompt("Truncate:")
+        .default(false)
+        .allow_empty(false)
+        .interact_text()
+        .unwrap();
+    
+    let mysql_url = format!(
         "mysql://{}:{}@{}:{}/{}",
         user, password, address, port, database
     );
-    config.add_mysql_connector_destination(display_name, postgres_url);
+    config.add_mysql_connector_destination(display_name, mysql_url, truncate);
     Ok(())
 }
 fn prompt_file_source(config: &mut Configuration) -> Result<()> {
@@ -762,6 +786,13 @@ fn prompt_snowflake_destination(config: &mut Configuration) -> Result<()> {
         .interact_text()
         .unwrap();
     let account_identifier = format!("{}-{}", organization_name, account_name);
+    let truncate: bool = Input::with_theme(&ColorfulTheme::default())
+        .with_prompt("Truncate:")
+        .default(false)
+        .allow_empty(false)
+        .interact_text()
+        .unwrap();
+
     config.add_snowflake_connector_destination(
         display_name,
         username,
@@ -771,6 +802,7 @@ fn prompt_snowflake_destination(config: &mut Configuration) -> Result<()> {
         warehouse,
         database,
         schema,
+        truncate,
     );
     Ok(())
 }
